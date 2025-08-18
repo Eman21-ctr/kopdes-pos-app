@@ -4,6 +4,7 @@ import { formatCurrency, generateDailyReportPDF } from '../lib/helpers.js'; // P
 const DailyReportReceipt = ({ reportData, date, onClose }) => {
   // Fungsi untuk memicu pembuatan dan pencetakan PDF
   const handlePrint = () => {
+    // Kita tetap mengoper 'date' (yang sekarang objek {start, end}) ke fungsi PDF
     generateDailyReportPDF(reportData, date);
   };
 
@@ -22,9 +23,19 @@ const DailyReportReceipt = ({ reportData, date, onClose }) => {
   }, [onClose]);
 
   // Jika tidak ada data laporan, jangan render apapun untuk mencegah error
-  if (!reportData) {
+  if (!reportData || !date) {
     return null;
   }
+
+  // --- BAGIAN BARU: Logika untuk menampilkan rentang tanggal ---
+  // Cek jika tanggal mulai dan akhir adalah hari yang sama
+  const isSingleDay = new Date(date.start).toDateString() === new Date(date.end).toDateString();
+
+  // Format string tanggal berdasarkan apakah rentangnya satu hari atau lebih
+  const dateString = isSingleDay
+    ? new Date(date.start).toLocaleDateString('id-ID', { dateStyle: 'long' })
+    : `${new Date(date.start).toLocaleDateString('id-ID', { dateStyle: 'long' })} - ${new Date(date.end).toLocaleDateString('id-ID', { dateStyle: 'long' })}`;
+  // --- Akhir Bagian Baru ---
 
   return (
     <>
@@ -38,8 +49,9 @@ const DailyReportReceipt = ({ reportData, date, onClose }) => {
               <p>Jln. Matani Raya</p>
             </div>
             <div className="border-t border-b border-dashed border-black my-1 py-1 text-center">
-                <h4 className="font-bold">LAPORAN HARIAN</h4>
-                <p>{date.toLocaleDateString('id-ID', { dateStyle: 'long' })}</p>
+                <h4 className="font-bold">LAPORAN PERIODE</h4>
+                {/* PERUBAHAN: Gunakan dateString yang sudah diformat */}
+                <p>{dateString}</p>
             </div>
             <div className="space-y-1">
                 <div className="flex justify-between"><span>Omzet</span> <span className="font-semibold">{formatCurrency(reportData.totalRevenue)}</span></div>
@@ -47,7 +59,6 @@ const DailyReportReceipt = ({ reportData, date, onClose }) => {
                 <div className="flex justify-between font-bold border-t border-dashed border-black pt-1"><span>Laba Kotor</span> <span>{formatCurrency(reportData.totalGrossProfit)}</span></div>
             </div>
             <div className="border-t border-dashed border-black mt-2 pt-1">
-                {/* PERBAIKAN: Tag penutup </p> yang salah telah diperbaiki */}
                 <p className="font-bold mb-1">Rincian:</p> 
                 <div className="flex justify-between"><span>Tunai</span> <span>{formatCurrency(reportData.cashRevenue)}</span></div>
                 <div className="flex justify-between"><span>Non-Tunai</span> <span>{formatCurrency(reportData.nonCashRevenue)}</span></div>

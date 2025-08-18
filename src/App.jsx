@@ -249,9 +249,12 @@ const addMember = useCallback(async (memberData) => {
   }, [products]);
 
 
-  const handleShowDailyReport = (data, date) => {
-    setDailyReportData({ data, date });
-  };
+  // Ubah dari:
+// const handleShowDailyReport = (data, date) => { ... }
+// Menjadi:
+const handleShowDailyReport = (data, dateRange) => {
+    setDailyReportData({ data, date: dateRange }); // date sekarang adalah objek {start, end}
+};
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, roles: [UserRole.Admin] },

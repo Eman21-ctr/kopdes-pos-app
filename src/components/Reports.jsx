@@ -51,16 +51,24 @@ const TransactionListTab = ({ transactions }) => {
 }
 
 const DailyReportTab = ({ transactions, products, onShowDailyReport }) => {
-    const [reportDate, setReportDate] = useState(new Date());
+    // 1. Ganti state tunggal menjadi state rentang
+    const [startDate, setStartDate] = useState(() => {
+        const date = new Date();
+        date.setHours(0, 0, 0, 0);
+        return date;
+    });
+    const [endDate, setEndDate] = useState(() => {
+        const date = new Date();
+        date.setHours(23, 59, 59, 999);
+        return date;
+    });
 
+    // 2. Perbarui useMemo untuk menggunakan state baru
     const reportData = useMemo(() => {
-        const dayStart = new Date(reportDate);
-        dayStart.setHours(0, 0, 0, 0);
-        const dayEnd = new Date(reportDate);
-        dayEnd.setHours(23, 59, 59, 999);
-
-        const dailyTransactions = transactions.filter(t => new Date(t.date) >= dayStart && new Date(t.date) <= dayEnd);
+        // Langsung filter menggunakan startDate dan endDate
+        const dailyTransactions = transactions.filter(t => new Date(t.date) >= startDate && new Date(t.date) <= endDate);
         
+        // Sisa kalkulasi (totalRevenue, totalHPP, dll.) sama seperti sebelumnya, pastikan masih ada
         const totalRevenue = dailyTransactions.reduce((sum, t) => sum + t.total, 0);
         const totalHPP = dailyTransactions.reduce((sum, t) => {
             const transactionCost = t.items.reduce((itemSum, item) => {
@@ -69,22 +77,43 @@ const DailyReportTab = ({ transactions, products, onShowDailyReport }) => {
             }, 0);
             return sum + transactionCost;
         }, 0);
-
         const totalGrossProfit = totalRevenue - totalHPP;
         const cashRevenue = dailyTransactions.filter(t => t.paymentMethod === PaymentMethod.Tunai).reduce((sum, t) => sum + t.total, 0);
         const nonCashRevenue = totalRevenue - cashRevenue;
         const hasTransactions = dailyTransactions.length > 0;
 
         return { totalRevenue, totalHPP, totalGrossProfit, cashRevenue, nonCashRevenue, hasTransactions };
-    }, [reportDate, transactions, products]);
+    }, [startDate, endDate, transactions, products]); // Perbarui dependensi
     
     return (
+        // 3. Ganti JSX agar menampilkan dua input tanggal dan judul yang benar
         <div className="bg-white p-6 rounded-lg shadow-sm max-w-2xl">
             <div className="flex justify-between items-center mb-6">
-                <div><label htmlFor="reportDate" className="text-sm font-medium text-slate-600">Pilih Tanggal Laporan</label><input type="date" id="reportDate" value={reportDate.toISOString().split('T')[0]} onChange={(e) => setReportDate(new Date(e.target.value))} className="mt-1 px-3 py-2 border rounded-md"/></div>
-                <button onClick={() => onShowDailyReport(reportData, reportDate)} disabled={!reportData.hasTransactions} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed">Cetak Laporan</button>
+                {/* UI dengan DUA input tanggal */}
+                <div className="flex items-center gap-4">
+                    <div>
+                        <label htmlFor="start-date-daily" className="text-sm font-medium text-slate-600">Dari Tanggal</label>
+                        <input type="date" id="start-date-daily" value={startDate.toISOString().split('T')[0]} onChange={(e) => { const date = new Date(e.target.value); date.setHours(0, 0, 0, 0); setStartDate(date); }} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/>
+                    </div>
+                    <div>
+                        <label htmlFor="end-date-daily" className="text-sm font-medium text-slate-600">Sampai Tanggal</label>
+                        <input type="date" id="end-date-daily" value={endDate.toISOString().split('T')[0]} onChange={(e) => { const date = new Date(e.target.value); date.setHours(23, 59, 59, 999); setEndDate(date); }} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm"/>
+                    </div>
+                </div>
+
+                {/* Tombol cetak diperbarui */}
+                <button 
+                    onClick={() => onShowDailyReport(reportData, { start: startDate, end: endDate })}
+                    disabled={!reportData.hasTransactions}
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                >
+                    Cetak Laporan
+                </button>
             </div>
-            <h3 className="text-xl font-bold mb-4">Rekapitulasi {reportDate.toLocaleDateString('id-ID', {dateStyle: 'long'})}</h3>
+            
+            {/* Judul laporan diperbarui */}
+            <h3 className="text-xl font-bold mb-4">Rekapitulasi Laporan</h3>
+            <p className="text-sm text-slate-600 -mt-3 mb-4">{startDate.toLocaleDateString('id-ID', {dateStyle: 'long'})} - {endDate.toLocaleDateString('id-ID', {dateStyle: 'long'})}</p>
             {reportData.hasTransactions ? (
                 <><div className="space-y-3 text-lg"><div className="flex justify-between"><span>Total Pendapatan (Omzet)</span> <span className="font-bold">{formatCurrency(reportData.totalRevenue)}</span></div><div className="flex justify-between"><span>Total HPP</span> <span className="font-bold">{formatCurrency(reportData.totalHPP)}</span></div><div className="flex justify-between text-xl border-t pt-2 mt-2"><span>Total Laba Kotor</span> <span className="font-bold text-green-600">{formatCurrency(reportData.totalGrossProfit)}</span></div></div>
                 <h4 className="text-lg font-semibold mt-8 mb-2">Rincian Pendapatan</h4><div className="space-y-2"><div className="flex justify-between p-3 bg-slate-50 rounded"><span>Pendapatan Tunai</span> <span className="font-medium">{formatCurrency(reportData.cashRevenue)}</span></div><div className="flex justify-between p-3 bg-slate-50 rounded"><span>Pendapatan Non-Tunai</span> <span className="font-medium">{formatCurrency(reportData.nonCashRevenue)}</span></div></div></>

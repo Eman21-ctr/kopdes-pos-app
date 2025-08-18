@@ -143,8 +143,16 @@ export const generateReceiptPDF = (transaction) => {
     });
 };
 
-export const generateDailyReportPDF = (reportData, date) => {
-     drawPdf((doc) => {
+export const generateDailyReportPDF = (reportData, dateRange) => { // 'date' diubah menjadi 'dateRange'
+    // Logika untuk memformat string tanggal, sama seperti di komponen Receipt
+    const isSingleDay = new Date(dateRange.start).toDateString() === new Date(dateRange.end).toDateString();
+    
+    // Kita gunakan format tanggal yang lebih pendek untuk PDF agar muat
+    const dateString = isSingleDay
+        ? new Date(dateRange.start).toLocaleDateString('id-ID', { dateStyle: 'long' })
+        : `${new Date(dateRange.start).toLocaleDateString('id-ID', { dateStyle: 'short' })} - ${new Date(dateRange.end).toLocaleDateString('id-ID', { dateStyle: 'short' })}`;
+
+    drawPdf((doc) => {
         let y = 7;
         const addLine = (text, options = {}) => {
             if (options.isBold) doc.setFont('courier', 'bold');
@@ -167,8 +175,11 @@ export const generateDailyReportPDF = (reportData, date) => {
         addLine('PENFUI TIMUR', { align: 'center', isBold: true });
         addLine('Jln. Matani Raya', { align: 'center' });
         line();
-        addLine('LAPORAN HARIAN', { align: 'center', isBold: true });
-        addLine(new Date(date).toLocaleDateString('id-ID', { dateStyle: 'long' }), { align: 'center' });
+        addLine('LAPORAN PERIODE', { align: 'center', isBold: true }); // Diubah dari "LAPORAN HARIAN"
+        
+        // PERUBAHAN: Gunakan dateString yang sudah diformat
+        addLine(dateString, { align: 'center' });
+
         line();
         addKeyValueLine('Omzet', formatCurrency(reportData.totalRevenue));
         addKeyValueLine('HPP', formatCurrency(reportData.totalHPP));
