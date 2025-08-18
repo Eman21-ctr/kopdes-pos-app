@@ -30,6 +30,7 @@ const App = () => {
   const [latestTransaction, setLatestTransaction] = useState(null);
   const [stockLogs, setStockLogs] = useState([]);
   const [dailyReportData, setDailyReportData] = useState(null);
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // <-- TAMBAHKAN BARIS INI
 
   useEffect(() => {
     const fetchData = async () => {
@@ -279,8 +280,12 @@ const addMember = useCallback(async (memberData) => {
   return (
     <>
       <div className="flex h-screen bg-slate-100 font-sans">
-        <aside className="w-64 bg-slate-900 text-white flex flex-col p-4">
-          <div className="text-center py-4 mb-6"><h1 className="text-lg font-bold uppercase leading-tight">Kopdes Merah Putih</h1><h2 className="text-sm font-semibold uppercase">Penfui Timur</h2></div>
+        {/* Sidebar */}
+        <aside className={`fixed lg:relative inset-y-0 left-0 z-30 w-64 bg-slate-900 text-white flex flex-col p-4 transform transition-transform duration-300 ease-in-out ${isSidebarOpen ? 'translate-x-0' : '-translate-x-full'} lg:translate-x-0`}>
+          <div className="text-center py-4 mb-6">
+            <h1 className="text-lg font-bold uppercase leading-tight">Kopdes Merah Putih</h1>
+            <h2 className="text-sm font-semibold uppercase">Penfui Timur</h2>
+          </div>
           <nav className="flex-grow space-y-2">
             {availableMenuItems.map(item => (
               <NavItem 
@@ -288,19 +293,30 @@ const addMember = useCallback(async (memberData) => {
                 menuId={item.id} 
                 label={item.label} 
                 Icon={item.icon}
-                onClick={setActiveMenu} 
+                // Disempurnakan: Saat menu diklik, tutup sidebar (hanya di mode mobile)
+                onClick={(menuId) => {
+                  setActiveMenu(menuId);
+                  setIsSidebarOpen(false); // Tutup sidebar setelah memilih menu
+                }} 
                 isActive={activeMenu === item.id} 
               />
             ))}
           </nav>
           <div className="mt-6">
             <label htmlFor="user-role" className="block text-sm text-slate-400 mb-2">Simulasi Peran Pengguna</label>
-            <select id="user-role" value={currentUserRole} onChange={(e) => {
+            <select 
+              id="user-role" 
+              value={currentUserRole} 
+              onChange={(e) => {
                 const newRole = e.target.value;
                 setCurrentUserRole(newRole);
                 const newMenu = newRole === UserRole.Kasir ? 'pos' : 'dashboard';
-                if (menuItems.find(m => m.id === newMenu)?.roles.includes(newRole)) { setActiveMenu(newMenu); } 
-                else { setActiveMenu(availableMenuItems[0].id); }
+                if (menuItems.find(m => m.id === newMenu)?.roles.includes(newRole)) { 
+                  setActiveMenu(newMenu);
+                } else { 
+                  setActiveMenu(availableMenuItems[0].id);
+                }
+                setIsSidebarOpen(false); // Tutup sidebar setelah ganti peran
               }}
               className="w-full bg-slate-800 border border-slate-700 text-white text-sm rounded-lg focus:ring-blue-500 focus:border-blue-500 block p-2.5">
               <option value={UserRole.Admin}>Admin/Manajer</option>
@@ -308,8 +324,37 @@ const addMember = useCallback(async (memberData) => {
             </select>
           </div>
         </aside>
-        <main className="flex-1 overflow-y-auto">{renderContent()}</main>
+
+        {/* === BAGIAN BARU: Overlay Gelap === */}
+        {/* Muncul saat sidebar terbuka & hanya di layar kecil (lg:hidden) */}
+        {isSidebarOpen && (
+          <div 
+            className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
+            onClick={() => setIsSidebarOpen(false)}
+          ></div>
+        )}
+
+        {/* Wrapper untuk header mobile dan konten utama */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          {/* Header yang HANYA MUNCUL DI HP (lg:hidden) */}
+          <header className="lg:hidden bg-white shadow-md p-4 flex justify-between items-center">
+              <button onClick={() => setIsSidebarOpen(true)}>
+                  <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+              </button>
+              <div className="text-center">
+                <h1 className="text-md font-bold uppercase leading-tight text-slate-800">Kopdes Merah Putih</h1>
+              </div>
+              <div className="w-6"></div> {/* Spacer kosong agar judul di tengah */}
+          </header>
+          
+          {/* Konten Utama */}
+          <main className="flex-1 overflow-y-auto">
+            {renderContent()}
+          </main>
+        </div>
       </div>
+      
+      {/* Modal-modal aplikasi */}
       {latestTransaction && (<ReceiptModal key={latestTransaction.id} transaction={latestTransaction} onClose={() => setLatestTransaction(null)} />)}
       {dailyReportData && (<DailyReportReceipt reportData={dailyReportData.data} date={dailyReportData.date} onClose={() => setDailyReportData(null)} />)}
     </>
