@@ -1,18 +1,17 @@
-// File: App.js (FINAL v2)
+// File: App.jsx (FINAL v3 - Dengan Tanggal Transaksi Kustom)
 import React, { useState, useCallback, useEffect } from 'react';
-// --- VERSI BENAR & LEBIH BERSIH ---
 import { db } from './lib/firebase.js';
 import { collection, getDocs, doc, addDoc, updateDoc, deleteDoc, writeBatch, Timestamp, query, orderBy, setDoc } from 'firebase/firestore';
-import { UserRole, StockLogType } from './lib/types.js'; // Diperbaiki: Ditambahkan './lib/'
-import Dashboard from './components/Dashboard.jsx'; // Diperbaiki: Ekstensi diubah ke .jsx
-import POS from './components/POS.jsx'; // Diperbaiki: Ekstensi diubah ke .jsx
-import StockManagement from './components/StockManagement.jsx'; // Diperbaiki
-import Reports from './components/Reports.jsx'; // Diperbaiki
-import ReceiptModal from './components/Receipt.jsx'; // Diperbaiki
-import DailyReportReceipt from './components/DailyReportReceipt.jsx'; // Diperbaiki
-import { DashboardIcon, POSIcon, StockIcon, ReportIcon } from './components/Icons.jsx'; // Diperbaiki
+import { UserRole, StockLogType } from './lib/types.js';
+import Dashboard from './components/Dashboard.jsx';
+import POS from './components/POS.jsx';
+import StockManagement from './components/StockManagement.jsx';
+import Reports from './components/Reports.jsx';
+import ReceiptModal from './components/Receipt.jsx';
+import DailyReportReceipt from './components/DailyReportReceipt.jsx';
+import { DashboardIcon, POSIcon, StockIcon, ReportIcon } from './components/Icons.jsx';
 
-// KOMPONEN NavItem DIPINDAHKAN KE LUAR App
+// Komponen NavItem tetap di luar App
 const NavItem = ({ menuId, label, Icon, onClick, isActive }) => (
   <button onClick={() => onClick(menuId)} className={`flex items-center w-full text-left px-4 py-3 rounded-lg transition-colors ${isActive ? 'bg-blue-600 text-white' : 'text-slate-300 hover:bg-blue-800 hover:text-white'}`}>
     <Icon className="w-6 h-6 mr-3" />
@@ -21,6 +20,7 @@ const NavItem = ({ menuId, label, Icon, onClick, isActive }) => (
 );
 
 const App = () => {
+  // Semua state tetap sama
   const [loading, setLoading] = useState(true);
   const [activeMenu, setActiveMenu] = useState('dashboard');
   const [currentUserRole, setCurrentUserRole] = useState(UserRole.Admin);
@@ -30,15 +30,15 @@ const App = () => {
   const [latestTransaction, setLatestTransaction] = useState(null);
   const [stockLogs, setStockLogs] = useState([]);
   const [dailyReportData, setDailyReportData] = useState(null);
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false); // <-- TAMBAHKAN BARIS INI
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
+  // useEffect untuk fetch data tetap sama
   useEffect(() => {
     const fetchData = async () => {
       try {
         const mapDoc = (doc) => ({ id: doc.id, ...doc.data() });
         const mapDocWithDate = (doc) => {
             const data = doc.data();
-            // Penanganan jika data.date tidak ada atau bukan objek Timestamp
             const date = data.date && typeof data.date.toDate === 'function' ? data.date.toDate() : new Date();
             return { id: doc.id, ...data, date };
         };
@@ -69,13 +69,19 @@ const App = () => {
     fetchData();
   }, []);
 
-  // ... (semua fungsi CRUD seperti addTransaction, addProduct, dll. tetap sama persis seperti versi sebelumnya)
-    const addTransaction = useCallback(async (transactionData) => {
-    const transactionDate = new Date();
+  // --- FUNGSI addTransaction YANG DIPERBARUI ---
+  const addTransaction = useCallback(async (transactionData) => {
     const cashierName = currentUserRole === UserRole.Admin ? "Admin" : "Kasir";
+    
+    // Gunakan tanggal dari transactionData yang dikirim dari POS, bukan buat tanggal baru.
+    const transactionDate = transactionData.date; 
+
+    // Siapkan data untuk dikirim ke Firestore.
+    // Kita hapus properti 'date' dari transactionData agar tidak duplikat.
+    const { date, ...restOfTransactionData } = transactionData;
     const newTransactionData = {
-      ...transactionData,
-      date: Timestamp.fromDate(transactionDate),
+      ...restOfTransactionData,
+      date: Timestamp.fromDate(transactionDate), // Konversi tanggal ke Timestamp Firestore
       cashierName,
     };
     
@@ -96,7 +102,7 @@ const App = () => {
                 batch.update(productRef, { stock: newStock });
 
                 const logData = {
-                    date: Timestamp.fromDate(transactionDate),
+                    date: Timestamp.fromDate(transactionDate), // Gunakan tanggal yang sama
                     type: StockLogType.Penjualan,
                     productName: product.name,
                     quantityChange: -item.quantity,
@@ -114,9 +120,10 @@ const App = () => {
         
         await batch.commit();
 
-        const finalTransaction = { ...newTransactionData, id: transactionRef.id, date: transactionDate };
-        setTransactions(prev => [finalTransaction, ...prev]);
-        setStockLogs(prev => [...newLogs, ...prev]);
+        // Untuk UI, gunakan tanggal asli (objek Date), bukan Timestamp
+        const finalTransaction = { ...transactionData, id: transactionRef.id, cashierName };
+        setTransactions(prev => [...prev, finalTransaction].sort((a,b) => b.date - a.date));
+        setStockLogs(prev => [...newLogs, ...prev].sort((a,b) => b.date - a.date));
         setProducts(updatedProducts);
         setLatestTransaction(finalTransaction);
     } catch (error) {

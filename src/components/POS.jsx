@@ -11,6 +11,7 @@ const POS = ({ products, members, addTransaction }) => {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState(PaymentMethod.Tunai);
   const [amountPaid, setAmountPaid] = useState(0);
+  const [transactionDate, setTransactionDate] = useState(new Date()); // <-- TAMBAHKAN INI
 
   const filteredProducts = useMemo(() => {
     if (!searchTerm) return [];
@@ -75,6 +76,7 @@ const POS = ({ products, members, addTransaction }) => {
     }
 
     addTransaction({
+      date: transactionDate, // <-- TAMBAHKAN BARIS INI
       items: cart,
       total: subtotal,
       paymentMethod,
@@ -91,8 +93,8 @@ const POS = ({ products, members, addTransaction }) => {
   };
 
   return (
-    <div className="flex h-full bg-slate-100">
-      <div className="w-2/5 bg-white p-6 flex flex-col shadow-lg">
+    <div className="flex flex-col lg:flex-row h-full bg-slate-100">
+      <div className="w-full lg:w-2/5 bg-white p-4 lg:p-6 flex flex-col shadow-lg">
         <h2 className="text-2xl font-bold text-slate-800 mb-4">Daftar Belanja</h2>
         <div className="flex-grow overflow-y-auto -mr-6 pr-6">
           {cart.length === 0 ? (
@@ -110,6 +112,18 @@ const POS = ({ products, members, addTransaction }) => {
           )}
         </div>
         <div className="border-t pt-4 mt-4 space-y-4">
+        {/* === INPUT TANGGAL BARU DITAMBAHKAN DI SINI === */}
+    <div>
+        <label htmlFor="transaction-date" className="block text-sm font-medium text-slate-700">Tanggal Transaksi</label>
+        <input
+            type="date"
+            id="transaction-date"
+            value={transactionDate.toISOString().split('T')[0]}
+            onChange={(e) => setTransactionDate(new Date(e.target.value))}
+            className="mt-1 w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+        />
+    </div>
+    {/* === AKHIR BAGIAN BARU === */}
           <div className="relative"><input type="text" placeholder="Nama Pelanggan (Opsional)" value={customerName} onChange={(e) => { setCustomerName(e.target.value); if(e.target.value){ setShowCustomerSuggestions(true); } }} onFocus={() => { if(customerName) setShowCustomerSuggestions(true) }} onBlur={() => setTimeout(() => setShowCustomerSuggestions(false), 200)} className="w-full px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"/>
             {showCustomerSuggestions && filteredMembers.length > 0 && (
               <div className="absolute bottom-full mb-1 left-0 right-0 bg-white border rounded-lg shadow-lg z-20 max-h-48 overflow-y-auto">{filteredMembers.map(member => (<div key={member.id} onMouseDown={() => selectCustomer(member)} className="px-4 py-2 hover:bg-blue-50 cursor-pointer">{member.name}</div>))}</div>
@@ -120,7 +134,7 @@ const POS = ({ products, members, addTransaction }) => {
         </div>
       </div>
       
-      <div className="w-3/5 p-8"><div className="relative"><input type="text" placeholder="Cari Barang (Nama atau SKU)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full px-4 py-3 text-lg border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
+      <div className="w-full lg:w-3/5 p-4 lg:p-8 flex-grow"><div className="relative"><input type="text" placeholder="Cari Barang (Nama atau SKU)" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} className="w-full px-4 py-3 text-lg border rounded-lg shadow-sm focus:outline-none focus:ring-2 focus:ring-blue-500"/>
           {searchTerm && (
             <div className="absolute top-full left-0 right-0 bg-white border mt-1 rounded-lg shadow-lg z-10 max-h-80 overflow-y-auto">
               {filteredProducts.map(p => (<div key={p.id} onClick={() => addToCart(p)} className="px-4 py-3 hover:bg-blue-50 cursor-pointer flex justify-between items-center"><div><p className="font-semibold">{p.name}</p><p className="text-sm text-slate-500">Stok: {p.stock} | {formatCurrency(p.sellPrice)}</p></div><button className="text-blue-500"><PlusCircleIcon className="w-6 h-6"/></button></div>))}
@@ -128,7 +142,7 @@ const POS = ({ products, members, addTransaction }) => {
             </div>
           )}
         </div>
-         <div className="mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto" style={{maxHeight: 'calc(100vh - 200px)'}}>{products.slice(0, 12).map(p => (<div key={p.id} onClick={() => addToCart(p)} className="bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-1 transition-transform">
+         <div className="hidden md:grid mt-8 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4 overflow-y-auto" style={{maxHeight: 'calc(100vh - 200px)'}}>{products.slice(0, 12).map(p => (<div key={p.id} onClick={() => addToCart(p)} className="bg-white p-4 rounded-lg shadow-sm cursor-pointer hover:shadow-md hover:-translate-y-1 transition-transform">
                     <div className="w-full h-24 bg-slate-200 rounded-md mb-2 flex items-center justify-center"><span className="text-slate-400 text-xs">Gambar Produk</span></div><h3 className="font-semibold text-sm truncate">{p.name}</h3><p className="text-blue-600 font-bold">{formatCurrency(p.sellPrice)}</p><p className="text-xs text-slate-500">Stok: {p.stock}</p></div>))}
         </div>
       </div>
