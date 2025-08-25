@@ -243,7 +243,7 @@ const AdjustStockPage = ({ products, stockLogs, onAdjust }) => {
 };
 
 // Komponen Daftar Produk
-const ProductList = ({ products, onEdit, onDelete, onExport }) => {
+const ProductList = ({ products, onEdit, onDelete, onExport }) => { // 1. Terima 'onEdit' di sini
     const [filter, setFilter] = useState('');
     const filteredProducts = useMemo(() => 
       products.filter(p => p.name.toLowerCase().includes(filter.toLowerCase()) || p.sku.toLowerCase().includes(filter.toLowerCase())),
@@ -252,41 +252,67 @@ const ProductList = ({ products, onEdit, onDelete, onExport }) => {
 
     return (
       <div>
-        <div className="flex justify-between items-center mb-4">
+        <div className="flex flex-col sm:flex-row justify-between items-center mb-4 gap-4">
           <input 
             type="text" 
             placeholder="Cari barang..." 
             value={filter}
             onChange={(e) => setFilter(e.target.value)}
-            className="px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+            className="w-full sm:w-auto px-4 py-2 border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
           />
            <button 
                 onClick={() => onExport(filteredProducts)}
                 disabled={filteredProducts.length === 0}
-                className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
+                className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:bg-slate-300"
             >
                 <DownloadIcon className="w-4 h-4" /> Download (.csv)
             </button>
         </div>
-        <div className="bg-white shadow-sm rounded-lg overflow-hidden">
-          <table className="w-full text-sm text-left text-slate-500">
-            <thead className="text-xs text-slate-700 uppercase bg-slate-50">
-              <tr>
-                <th scope="col" className="px-6 py-3">SKU</th><th scope="col" className="px-6 py-3">Nama Barang</th><th scope="col" className="px-6 py-3">Harga Beli</th><th scope="col" className="px-6 py-3">Harga Jual</th><th scope="col" className="px-6 py-3">Stok</th><th scope="col" className="px-6 py-3">Aksi</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filteredProducts.map(p => (
-                <tr key={p.id} className="bg-white border-b hover:bg-slate-50">
-                  <td className="px-6 py-4 font-medium text-slate-900">{p.sku}</td><td className="px-6 py-4">{p.name}</td><td className="px-6 py-4">{formatCurrency(p.purchasePrice)}</td><td className="px-6 py-4">{formatCurrency(p.sellPrice)}</td><td className={`px-6 py-4 font-bold ${p.stock < 10 ? 'text-red-500' : 'text-slate-800'}`}>{p.stock} {p.unit}</td>
-                  <td className="px-6 py-4">
-                    <button onClick={() => onEdit(p)} className="font-medium text-blue-600 hover:underline mr-4">Edit</button>
-                    <button onClick={() => { if(window.confirm(`Yakin ingin hapus ${p.name}?`)) onDelete(p.id) }} className="font-medium text-red-600 hover:underline">Hapus</button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        
+        {/* Container untuk daftar produk yang responsif */}
+        <div className="space-y-4 lg:space-y-0">
+          {/* Header Tabel - HANYA MUNCUL DI DESKTOP (lg) */}
+          <div className="hidden lg:grid grid-cols-6 gap-4 px-6 py-3 bg-slate-50 text-xs font-medium text-slate-700 uppercase rounded-t-lg">
+            <span>SKU</span><span>Nama Barang</span><span>Harga Beli</span><span>Harga Jual</span><span>Stok</span><span>Aksi</span>
+          </div>
+
+          {/* Daftar Produk */}
+          {filteredProducts.length > 0 ? (
+            filteredProducts.map(p => (
+              <div key={p.id} className="bg-white p-4 rounded-lg shadow-sm lg:shadow-none lg:rounded-none lg:p-0 lg:grid lg:grid-cols-6 lg:gap-4 lg:items-center lg:border-b">
+                {/* Tampilan Kartu untuk Mobile (di bawah lg) */}
+                <div className="lg:hidden">
+                  <div className="flex justify-between items-start mb-2">
+                    <div><p className="font-bold text-slate-800">{p.name}</p><p className="text-xs text-slate-500">SKU: {p.sku}</p></div>
+                    <div className="flex items-center gap-4">
+                      {/* 2. Gunakan 'onEdit' di sini */}
+                      <button onClick={() => onEdit(p)} className="font-medium text-blue-600">Edit</button>
+                      <button onClick={() => { if(window.confirm(`Yakin ingin hapus ${p.name}?`)) onDelete(p.id) }} className="font-medium text-red-600">Hapus</button>
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-2 text-sm border-t pt-2">
+                    <div className="text-center"><p className="text-xs text-slate-500">Harga Beli</p><p className="font-semibold">{formatCurrency(p.purchasePrice)}</p></div>
+                    <div className="text-center"><p className="text-xs text-slate-500">Harga Jual</p><p className="font-semibold">{formatCurrency(p.sellPrice)}</p></div>
+                    <div className="text-center"><p className="text-xs text-slate-500">Stok</p><p className={`font-bold ${p.stock < 10 ? 'text-red-500' : 'text-slate-800'}`}>{p.stock} {p.unit}</p></div>
+                  </div>
+                </div>
+
+                {/* Tampilan Baris Tabel untuk Desktop (lg dan ke atas) */}
+                <div className="hidden lg:flex items-center px-6 py-4 font-medium text-slate-900">{p.sku}</div>
+                <div className="hidden lg:flex items-center px-6 py-4">{p.name}</div>
+                <div className="hidden lg:flex items-center px-6 py-4">{formatCurrency(p.purchasePrice)}</div>
+                <div className="hidden lg:flex items-center px-6 py-4">{formatCurrency(p.sellPrice)}</div>
+                <div className={`hidden lg:flex items-center px-6 py-4 font-bold ${p.stock < 10 ? 'text-red-500' : 'text-slate-800'}`}>{p.stock} {p.unit}</div>
+                <div className="hidden lg:flex items-center px-6 py-4">
+                  {/* 2. Gunakan 'onEdit' di sini juga */}
+                  <button onClick={() => onEdit(p)} className="font-medium text-blue-600 hover:underline mr-4">Edit</button>
+                  <button onClick={() => { if(window.confirm(`Yakin ingin hapus ${p.name}?`)) onDelete(p.id) }} className="font-medium text-red-600 hover:underline">Hapus</button>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-10 text-slate-500 bg-white rounded-lg shadow-sm">Tidak ada produk yang cocok.</div>
+          )}
         </div>
       </div>
     );
