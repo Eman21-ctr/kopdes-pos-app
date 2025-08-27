@@ -1,11 +1,11 @@
 import React, { useState, useMemo } from 'react';
-import { SavingType, LoanStatus } from '../lib/types.js';
-import { formatDate, formatCurrency, exportTransactionsToCSV, exportMemberReportToCSV } from '../lib/helpers.js';
-import { DownloadIcon } from './Icons.jsx';
-import AddMemberModal from './AddMemberModal.jsx'; // Pastikan file ini ada
+import { UserRole } from '../lib/types.js';
+import { formatDate, formatCurrency, exportTransactionsToCSV } from '../lib/helpers.js';
+import { DownloadIcon, TrashIcon } from './Icons.jsx';
+import AddMemberModal from './AddMemberModal.jsx';
 
 // --- TAB DAFTAR TRANSAKSI ---
-const TransactionListTab = ({ transactions }) => {
+const TransactionListTab = ({ transactions, deleteTransaction, currentUserRole }) => {
     const [startDate, setStartDate] = useState(() => {
         const date = new Date();
         date.setHours(0, 0, 0, 0);
@@ -41,21 +41,33 @@ const TransactionListTab = ({ transactions }) => {
                 </div>
             </div>
 
-            {/* Container untuk daftar transaksi */}
             <div className="space-y-4 lg:space-y-0">
-                {/* Header Tabel - HANYA MUNCUL DI DESKTOP (lg) */}
-                <div className="hidden lg:grid grid-cols-6 gap-4 px-6 py-3 bg-slate-50 text-xs font-medium text-slate-700 uppercase rounded-t-lg">
-                    <span>No. Transaksi</span><span>Tanggal & Waktu</span><span>Nama Kasir</span><span>Nama Pelanggan</span><span className="text-right">Total Belanja</span><span className="text-center">Metode Bayar</span>
+                <div className="hidden lg:grid grid-cols-7 gap-4 px-6 py-3 bg-slate-50 text-xs font-medium text-slate-700 uppercase rounded-t-lg">
+                    <span>No. Transaksi</span><span>Tanggal & Waktu</span><span>Nama Kasir</span><span>Nama Pelanggan</span><span className="text-right">Total Belanja</span><span className="text-center">Metode Bayar</span><span className="text-center">Aksi</span>
                 </div>
-                {/* Daftar Transaksi */}
+                
                 {filteredTransactions.length > 0 ? (
                     filteredTransactions.map(t => (
-                    <div key={t.id} className="bg-white p-4 rounded-lg shadow-sm lg:shadow-none lg:rounded-none lg:p-0 lg:grid lg:grid-cols-6 lg:gap-4 lg:items-center lg:border-b">
+                    <div key={t.id} className="bg-white p-4 rounded-lg shadow-sm lg:shadow-none lg:rounded-none lg:p-0 lg:grid lg:grid-cols-7 lg:gap-4 lg:items-center lg:border-b">
                         <div className="lg:hidden">
                             <div className="flex justify-between items-start mb-2"><div className="font-semibold text-slate-800">{formatCurrency(t.total)}</div><span className="text-xs font-medium px-2 py-1 bg-blue-100 text-blue-800 rounded-full">{t.paymentMethod}</span></div>
                             <div className="text-sm text-slate-600 space-y-1 border-t pt-2"><p><strong>ID:</strong> <span className="font-mono text-xs">{t.id.substring(0,8)}</span></p><p><strong>Pelanggan:</strong> {t.customerName || 'Pelanggan Umum'}</p><p><strong>Kasir:</strong> {t.cashierName}</p><p><strong>Waktu:</strong> {formatDate(t.date)}</p></div>
+                            {currentUserRole === UserRole.Admin && (
+                                <div className="mt-2 pt-2 border-t flex justify-end">
+                                    <button onClick={() => deleteTransaction(t)} className="flex items-center gap-1 text-xs font-medium text-red-600 hover:underline">
+                                        <TrashIcon className="w-3 h-3" /> Hapus Transaksi
+                                    </button>
+                                </div>
+                            )}
                         </div>
                         <div className="hidden lg:flex items-center px-6 py-4 font-mono text-xs text-slate-600">{t.id}</div><div className="hidden lg:flex items-center px-6 py-4 text-sm">{formatDate(t.date)}</div><div className="hidden lg:flex items-center px-6 py-4 text-sm">{t.cashierName}</div><div className="hidden lg:flex items-center px-6 py-4 text-sm">{t.customerName || 'Pelanggan Umum'}</div><div className="hidden lg:flex items-center justify-end px-6 py-4 font-semibold text-slate-800 text-sm">{formatCurrency(t.total)}</div><div className="hidden lg:flex items-center justify-center px-6 py-4 text-sm">{t.paymentMethod}</div>
+                        <div className="hidden lg:flex items-center justify-center px-6 py-4 text-sm">
+                            {currentUserRole === UserRole.Admin && (
+                                <button onClick={() => deleteTransaction(t)} className="text-red-600 hover:text-red-800" title="Hapus Transaksi">
+                                    <TrashIcon className="w-4 h-4" />
+                                </button>
+                            )}
+                        </div>
                     </div>
                     ))
                 ) : (<div className="text-center py-10 text-slate-500 bg-white rounded-lg shadow-sm">Tidak ada transaksi pada rentang tanggal ini.</div>)}
@@ -107,8 +119,6 @@ const DailyReportTab = ({ transactions, products, onShowDailyReport }) => {
 
 // --- TAB LAPORAN ANGGOTA ---
 const MemberReportTab = ({ members, onAddMemberClick }) => {
-    // Di sini Anda bisa menambahkan logika untuk laporan anggota jika diperlukan.
-    // Untuk saat ini, kita hanya akan menampilkan tombol Tambah Anggota.
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
              <div className="flex justify-between items-center mb-4">
@@ -124,7 +134,7 @@ const MemberReportTab = ({ members, onAddMemberClick }) => {
 
 
 // --- KOMPONEN UTAMA REPORTS ---
-const Reports = ({ transactions, members, products, onShowDailyReport, addMember }) => {
+const Reports = ({ transactions, members, products, onShowDailyReport, addMember, deleteTransaction, currentUserRole }) => {
     const [activeTab, setActiveTab] = useState('transactions');
     const [showAddMemberModal, setShowAddMemberModal] = useState(false);
 
@@ -135,13 +145,17 @@ const Reports = ({ transactions, members, products, onShowDailyReport, addMember
 
     return (
         <div className="p-4 sm:p-8">
-            {showAddMemberModal && <AddMemberModal onClose={() => setShowAddMemberModal(false)} onAddMember={handleAddMember} />}
+            {showAddMemberModal && <AddMemberModal onClose={() => setShowAddMemberModal(false)} onAddMember={handleAddMember} members={members}/>}
             <h1 className="text-3xl font-bold text-slate-800 mb-6">Laporan</h1>
             <div className="mb-6 border-b border-slate-200">
-                <nav className="-mb-px flex space-x-8" aria-label="Tabs"><button onClick={() => setActiveTab('transactions')} className={`${activeTab === 'transactions' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Daftar Transaksi</button><button onClick={() => setActiveTab('daily')} className={`${activeTab === 'daily' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Laporan Harian</button><button onClick={() => setActiveTab('members')} className={`${activeTab === 'members' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Laporan Anggota</button></nav>
+                <nav className="-mb-px flex space-x-8" aria-label="Tabs">
+                    <button onClick={() => setActiveTab('transactions')} className={`${activeTab === 'transactions' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Daftar Transaksi</button>
+                    <button onClick={() => setActiveTab('daily')} className={`${activeTab === 'daily' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Laporan Harian</button>
+                    <button onClick={() => setActiveTab('members')} className={`${activeTab === 'members' ? 'border-blue-500 text-blue-600' : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'} whitespace-nowrap py-4 px-1 border-b-2 font-medium text-sm`}>Laporan Anggota</button>
+                </nav>
             </div>
             <div>
-                {activeTab === 'transactions' && <TransactionListTab transactions={transactions} />}
+                {activeTab === 'transactions' && <TransactionListTab transactions={transactions} deleteTransaction={deleteTransaction} currentUserRole={currentUserRole} />}
                 {activeTab === 'daily' && <DailyReportTab transactions={transactions} products={products} onShowDailyReport={onShowDailyReport} />}
                 {activeTab === 'members' && <MemberReportTab members={members} onAddMemberClick={() => setShowAddMemberModal(true)} />}
             </div>

@@ -167,6 +167,70 @@ const App = () => {
   }, []);
   // ... setelah fungsi deleteProduct ...
 
+const deleteTransaction = useCallback(async (transactionToDelete) => {
+    // Konfirmasi ulang sebelum melakukan aksi berbahaya
+    const isConfirmed = window.confirm(`Yakin ingin menghapus transaksi #${transactionToDelete.id.substring(0, 8)}? Stok barang akan dikembalikan. Aksi ini tidak bisa dibatalkan.`);
+    
+    if (!isConfirmed) {
+        return; // Batalkan jika pengguna menekan 'Cancel'
+    }
+
+    try {
+        const batch = writeBatch(db);
+
+        // 1. Kembalikan stok untuk setiap barang dalam transaksi
+        for (const item of transactionToDelete.items) {
+            const productRef = doc(db, "products", item.id);
+            
+            // Buat log stok baru untuk pengembalian
+            const logData = {
+                date: Timestamp.fromDate(new Date()),
+                type: StockLogType.Penyesuaian, // atau bisa buat tipe baru 'Pembatalan Transaksi'
+                productName: item.name,
+                quantityChange: item.quantity, // Nilai positif untuk mengembalikan stok
+                // Kita butuh stok lama untuk log, kita ambil dari state
+                oldStock: products.find(p => p.id === item.id)?.stock || 0,
+                newStock: (products.find(p => p.id === item.id)?.stock || 0) + item.quantity,
+                notes: `Pembatalan Transaksi #${transactionToDelete.id.substring(0, 8)}`
+            };
+
+            const logRef = doc(collection(db, "stockLogs"));
+            batch.set(logRef, logData);
+            
+            // Firestore tidak memiliki operator increment, jadi kita harus baca dulu.
+            // Namun, untuk batch, kita asumsikan state 'products' kita sudah up-to-date.
+            // Kita akan update stok berdasarkan state saat ini.
+            const currentProduct = products.find(p => p.id === item.id);
+            if (currentProduct) {
+                const newStock = currentProduct.stock + item.quantity;
+                batch.update(productRef, { stock: newStock });
+            }
+        }
+
+        // 2. Hapus dokumen transaksi itu sendiri
+        const transactionRef = doc(db, "transactions", transactionToDelete.id);
+        batch.delete(transactionRef);
+
+        // Jalankan semua operasi dalam batch
+        await batch.commit();
+
+        // 3. Perbarui state di UI secara optimis
+        setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+        // Fetch ulang data produk & log untuk memastikan konsistensi
+        // (Cara sederhana, atau bisa update manual seperti di addTransaction)
+        alert("Transaksi berhasil dihapus dan stok telah dikembalikan.");
+        
+        // Untuk refresh data stok dan log stok di UI, kita bisa panggil fetchData lagi
+        // Ini cara paling mudah untuk memastikan data sinkron
+        // (Membutuhkan sedikit refactoring fetchData agar bisa dipanggil ulang)
+
+    } catch (error) {
+        console.error("Error deleting transaction: ", error);
+        alert("Gagal menghapus transaksi.");
+    }
+}, [products]); // Tambahkan 'products' sebagai dependensi
+  // ... setelah fungsi deleteProduct ...
+
 const addMember = useCallback(async (memberData) => {
     try {
         // Kita menggunakan No Anggota (memberData.id) sebagai ID dokumen
@@ -282,7 +346,7 @@ const handleShowDailyReport = (data, dateRange) => {
       case 'dashboard': return <Dashboard products={products} transactions={transactions} />;
       case 'pos': return <POS products={products.filter(p => p.stock > 0)} members={members} addTransaction={addTransaction} />;
       case 'stock': return <StockManagement products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} receiveStock={receiveStock} adjustStock={adjustStock} stockLogs={stockLogs} />;
-      case 'reports': return <Reports transactions={transactions} onShowDailyReport={handleShowDailyReport} members={members} products={products} addMember={addMember} />;
+      case 'reports': return <Reports transactions={transactions} onShowDailyReport={handleShowDailyReport} members={members} products={products} addMember={addMember}  deleteTransaction={deleteTransaction} currentUserRole={currentUserRole}/>;
       default: return <Dashboard products={products} transactions={transactions} />;
     }
   };
