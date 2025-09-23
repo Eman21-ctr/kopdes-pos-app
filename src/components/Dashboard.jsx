@@ -11,10 +11,41 @@ const StatCard = ({ title, value, className }) => (
 );
 
 const Dashboard = ({ products, transactions }) => {
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
+  // Helper function untuk mendapatkan tanggal hari ini dalam format YYYY-MM-DD
+  const getTodayDateString = () => {
+    const today = new Date();
+    return today.toISOString().split('T')[0]; // Format: YYYY-MM-DD
+  };
 
-  const todaysTransactions = transactions.filter(t => new Date(t.date) >= todayStart);
+  // Helper function untuk mengkonversi tanggal ke format YYYY-MM-DD
+  const getDateString = (date) => {
+    if (typeof date === 'string') {
+      // Jika sudah string, ambil bagian tanggal saja
+      return date.split('T')[0];
+    }
+    if (date instanceof Date) {
+      return date.toISOString().split('T')[0];
+    }
+    // Fallback: coba parse sebagai Date
+    return new Date(date).toISOString().split('T')[0];
+  };
+
+  const todayString = getTodayDateString();
+
+  // Filter transaksi hari ini dengan perbandingan string tanggal
+  const todaysTransactions = transactions.filter(t => {
+    try {
+      const transactionDateString = getDateString(t.date);
+      return transactionDateString === todayString;
+    } catch (error) {
+      console.warn('Error parsing transaction date:', t.date, error);
+      return false;
+    }
+  });
+
+  console.log('Today:', todayString);
+  console.log('Today\'s transactions:', todaysTransactions);
+  console.log('All transactions:', transactions.map(t => ({ id: t.id, date: t.date, dateString: getDateString(t.date) })));
 
   const todaysRevenue = todaysTransactions.reduce((sum, t) => sum + t.total, 0);
   const todaysTransactionsCount = todaysTransactions.length;
@@ -30,12 +61,19 @@ const Dashboard = ({ products, transactions }) => {
     }, 0);
   }, [todaysTransactions, products]);
 
-
   const topProducts = useMemo(() => {
     const sevenDaysAgo = new Date();
     sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    const sevenDaysAgoString = sevenDaysAgo.toISOString().split('T')[0];
 
-    const recentTransactions = transactions.filter(t => new Date(t.date) >= sevenDaysAgo);
+    const recentTransactions = transactions.filter(t => {
+      try {
+        const transactionDateString = getDateString(t.date);
+        return transactionDateString >= sevenDaysAgoString;
+      } catch (error) {
+        return false;
+      }
+    });
 
     const productSales = new Map();
     recentTransactions.forEach(t => {
@@ -54,23 +92,24 @@ const Dashboard = ({ products, transactions }) => {
     const last7Days = Array.from({ length: 7 }, (_, i) => {
       const d = new Date();
       d.setDate(d.getDate() - i);
-      d.setHours(0, 0, 0, 0);
-      return d;
+      return d.toISOString().split('T')[0];
     }).reverse();
 
-    return last7Days.map(date => {
-      const dayEnd = new Date(date);
-      dayEnd.setHours(23, 59, 59, 999);
-
+    return last7Days.map(dateString => {
       const dailyRevenue = transactions
         .filter(t => {
-            const tDate = new Date(t.date);
-            return tDate >= date && tDate <= dayEnd;
+          try {
+            const transactionDateString = getDateString(t.date);
+            return transactionDateString === dateString;
+          } catch (error) {
+            return false;
+          }
         })
         .reduce((sum, t) => sum + t.total, 0);
 
+      const dateObj = new Date(dateString);
       return {
-        name: date.toLocaleDateString('id-ID', { weekday: 'short' }),
+        name: dateObj.toLocaleDateString('id-ID', { weekday: 'short' }),
         Penjualan: dailyRevenue,
       };
     });
