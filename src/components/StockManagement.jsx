@@ -368,7 +368,7 @@ const AddProductForm = ({ onSave, onCancel }) => {
                     <div>
                         <label className="block text-sm font-medium text-slate-700">Satuan</label>
                         <select name="unit" value={formState.unit} onChange={handleChange} className="mt-1 block w-full px-3 py-2 border border-slate-300 rounded-md shadow-sm focus:outline-none focus:ring-blue-500 focus:border-blue-500">
-                            <option>Pcs</option><option>Kg</option><option>Liter</option><option>Pack</option>Karung</option>Jrg</option>
+                            <option>Pcs</option><option>Kg</option><option>Liter</option><option>Pack</option><option>Karung</option><option>Jrg</option>
                         </select>
                     </div>
                 </div>
