@@ -112,16 +112,152 @@ const DailyReportTab = ({ transactions, products, onShowDailyReport }) => {
 };
 
 // --- TAB LAPORAN ANGGOTA ---
-const MemberReportTab = ({ members, onAddMemberClick }) => {
+const MemberReportTab = ({ members, transactions, onAddMemberClick }) => {
+    // Hitung statistik transaksi per anggota
+    const memberTransactionStats = useMemo(() => {
+        const stats = {};
+        
+        // Inisialisasi stats untuk semua anggota
+        members.forEach(member => {
+            stats[member.name] = {
+                id: member.id,
+                name: member.name,
+                totalTransactions: 0,
+                totalAmount: 0,
+                lastTransactionDate: null
+            };
+        });
+
+        // Proses setiap transaksi
+        transactions.forEach(transaction => {
+            const customerName = transaction.customerName;
+            if (customerName && customerName !== 'Pelanggan Umum' && stats[customerName]) {
+                stats[customerName].totalTransactions += 1;
+                stats[customerName].totalAmount += transaction.total;
+                
+                // Update tanggal transaksi terakhir
+                if (!stats[customerName].lastTransactionDate || 
+                    new Date(transaction.date) > new Date(stats[customerName].lastTransactionDate)) {
+                    stats[customerName].lastTransactionDate = transaction.date;
+                }
+            }
+        });
+
+        // Convert ke array dan urutkan berdasarkan total belanja
+        return Object.values(stats).sort((a, b) => b.totalAmount - a.totalAmount);
+    }, [members, transactions]);
+
     return (
         <div className="bg-white p-6 rounded-lg shadow-sm">
-             <div className="flex justify-between items-center mb-4">
-                <h3 className="text-xl font-bold">Pusat Anggota</h3>
-                <button onClick={onAddMemberClick} className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm">
+            <div className="flex justify-between items-center mb-6">
+                <h3 className="text-xl font-bold">Laporan Anggota</h3>
+                <button 
+                    onClick={onAddMemberClick} 
+                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                >
                     Tambah Anggota Baru
                 </button>
             </div>
-            <p className="text-slate-500">Gunakan tombol di atas untuk mendaftarkan anggota baru. Untuk melihat daftar lengkap anggota, silakan kunjungi menu "Manajemen Stok".</p>
+
+            {members.length === 0 ? (
+                <div className="text-center py-8">
+                    <p className="text-slate-500 mb-4">Belum ada anggota terdaftar.</p>
+                    <button 
+                        onClick={onAddMemberClick}
+                        className="text-blue-600 hover:underline"
+                    >
+                        Daftarkan anggota pertama
+                    </button>
+                </div>
+            ) : (
+                <>
+                    <div className="mb-4 text-sm text-slate-600">
+                        <p>Data ini akan digunakan sebagai dasar perhitungan SHU (Sisa Hasil Usaha) di akhir tahun.</p>
+                        <p>Total Anggota: <strong>{members.length}</strong> | Anggota Aktif: <strong>{memberTransactionStats.filter(m => m.totalTransactions > 0).length}</strong></p>
+                    </div>
+
+                    {/* Tabel Desktop */}
+                    <div className="hidden md:block overflow-x-auto">
+                        <table className="min-w-full">
+                            <thead className="bg-slate-50">
+                                <tr>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase">No. Anggota</th>
+                                    <th className="px-4 py-3 text-left text-xs font-medium text-slate-700 uppercase">Nama Anggota</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-slate-700 uppercase">Jumlah Transaksi</th>
+                                    <th className="px-4 py-3 text-right text-xs font-medium text-slate-700 uppercase">Total Belanja</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-slate-700 uppercase">Transaksi Terakhir</th>
+                                    <th className="px-4 py-3 text-center text-xs font-medium text-slate-700 uppercase">Status</th>
+                                </tr>
+                            </thead>
+                            <tbody className="divide-y divide-slate-200">
+                                {memberTransactionStats.map((member) => (
+                                    <tr key={member.id} className="hover:bg-slate-50">
+                                        <td className="px-4 py-3 text-sm font-mono text-slate-600">{member.id}</td>
+                                        <td className="px-4 py-3 text-sm font-medium text-slate-800">{member.name}</td>
+                                        <td className="px-4 py-3 text-sm text-center">
+                                            <span className="bg-blue-100 text-blue-800 px-2 py-1 rounded-full text-xs font-medium">
+                                                {member.totalTransactions}
+                                            </span>
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-right font-semibold text-slate-800">
+                                            {formatCurrency(member.totalAmount)}
+                                        </td>
+                                        <td className="px-4 py-3 text-sm text-center text-slate-600">
+                                            {member.lastTransactionDate ? formatDate(member.lastTransactionDate).split(' ')[0] : '-'}
+                                        </td>
+                                        <td className="px-4 py-3 text-center">
+                                            <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                                member.totalTransactions > 0 
+                                                    ? 'bg-green-100 text-green-800' 
+                                                    : 'bg-orange-100 text-orange-800'
+                                            }`}>
+                                                {member.totalTransactions > 0 ? 'Aktif' : 'Belum Aktif'}
+                                            </span>
+                                        </td>
+                                    </tr>
+                                ))}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    {/* Cards Mobile */}
+                    <div className="md:hidden space-y-4">
+                        {memberTransactionStats.map((member) => (
+                            <div key={member.id} className="bg-slate-50 p-4 rounded-lg">
+                                <div className="flex justify-between items-start mb-3">
+                                    <div>
+                                        <h4 className="font-semibold text-slate-800">{member.name}</h4>
+                                        <p className="text-sm text-slate-600">ID: {member.id}</p>
+                                    </div>
+                                    <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+                                        member.totalTransactions > 0 
+                                            ? 'bg-green-100 text-green-800' 
+                                            : 'bg-orange-100 text-orange-800'
+                                    }`}>
+                                        {member.totalTransactions > 0 ? 'Aktif' : 'Belum Aktif'}
+                                    </span>
+                                </div>
+                                <div className="grid grid-cols-2 gap-4 text-sm">
+                                    <div>
+                                        <span className="text-slate-600">Transaksi:</span>
+                                        <span className="ml-2 font-medium">{member.totalTransactions}x</span>
+                                    </div>
+                                    <div>
+                                        <span className="text-slate-600">Total Belanja:</span>
+                                        <span className="ml-2 font-medium">{formatCurrency(member.totalAmount)}</span>
+                                    </div>
+                                    <div className="col-span-2">
+                                        <span className="text-slate-600">Transaksi Terakhir:</span>
+                                        <span className="ml-2 font-medium">
+                                            {member.lastTransactionDate ? formatDate(member.lastTransactionDate).split(' ')[0] : 'Belum ada'}
+                                        </span>
+                                    </div>
+                                </div>
+                            </div>
+                        ))}
+                    </div>
+                </>
+            )}
         </div>
     );
 };
@@ -151,7 +287,7 @@ const Reports = ({ transactions, members, products, onShowDailyReport, addMember
             <div>
                 {activeTab === 'transactions' && <TransactionListTab transactions={transactions} deleteTransaction={deleteTransaction} currentUserRole={currentUserRole} />}
                 {activeTab === 'daily' && <DailyReportTab transactions={transactions} products={products} onShowDailyReport={onShowDailyReport} />}
-                {activeTab === 'members' && <MemberReportTab members={members} onAddMemberClick={() => setShowAddMemberModal(true)} />}
+                {activeTab === 'members' && <MemberReportTab members={members} transactions={transactions} onAddMemberClick={() => setShowAddMemberModal(true)} />}
             </div>
         </div>
     );
