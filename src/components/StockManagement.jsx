@@ -1,7 +1,7 @@
 import React, { useState, useMemo } from 'react';
 // Import 'StockLogType' yang baru kita buat
 import { StockLogType } from "../lib/types.js";
-import { formatCurrency, formatDate, exportProductsToCSV, exportStockLogsToCSV } from '../lib/helpers.js'; // PASTIKAN PATH INI BENAR
+import { formatCurrency, formatDate, exportProductsToExcel, exportStockLogsToExcel } from '../lib/helpers.js'; // PASTIKAN PATH INI BENAR
 import { DownloadIcon } from './Icons.jsx';
 
 const PRODUCT_UNITS = ['Pcs', 'Kg', 'Liter', 'Pack', 'Sachet', 'Botol', 'Kaleng', 'Rak', 'Renteng', 'Dos', 'Ikat', 'Karung', 'Jrg', 'Tabung', 'Bungkus', 'Batang', 'Butir', 'Gelas'];
@@ -109,11 +109,11 @@ const ReceiveStockPage = ({ products, stockLogs, onReceive }) => {
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">Riwayat Penerimaan Stok</h3>
                     <button
-                        onClick={() => exportStockLogsToCSV(receptionHistory, 'Riwayat_Penerimaan_Stok')}
+                        onClick={() => exportStockLogsToExcel(receptionHistory, 'Riwayat_Penerimaan_Stok')}
                         disabled={receptionHistory.length === 0}
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
                     >
-                        <DownloadIcon className="w-4 h-4" /> Download (.csv)
+                        <DownloadIcon className="w-4 h-4" /> Download (.xlsx)
                     </button>
                 </div>
                 <div className="max-h-64 overflow-y-auto">
@@ -207,11 +207,11 @@ const AdjustStockPage = ({ products, stockLogs, onAdjust }) => {
                 <div className="flex justify-between items-center mb-4">
                     <h3 className="text-lg font-semibold">Riwayat Penyesuaian Stok</h3>
                     <button
-                        onClick={() => exportStockLogsToCSV(adjustmentHistory, 'Riwayat_Penyesuaian_Stok')}
+                        onClick={() => exportStockLogsToExcel(adjustmentHistory, 'Riwayat_Penyesuaian_Stok')}
                         disabled={adjustmentHistory.length === 0}
                         className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:bg-slate-300 disabled:cursor-not-allowed"
                     >
-                        <DownloadIcon className="w-4 h-4" /> Download (.csv)
+                        <DownloadIcon className="w-4 h-4" /> Download (.xlsx)
                     </button>
                 </div>
                 <div className="max-h-64 overflow-y-auto">
@@ -267,7 +267,7 @@ const ProductList = ({ products, onEdit, onDelete, onExport }) => { // 1. Terima
                     disabled={filteredProducts.length === 0}
                     className="w-full sm:w-auto flex items-center justify-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md text-sm hover:bg-green-700 disabled:bg-slate-300"
                 >
-                    <DownloadIcon className="w-4 h-4" /> Download (.csv)
+                    <DownloadIcon className="w-4 h-4" /> Download (.xlsx)
                 </button>
             </div>
 
@@ -462,7 +462,7 @@ const StockManagement = ({ products, stockLogs, addProduct, updateProduct, delet
                     products={products}
                     onEdit={setEditingProduct}
                     onDelete={deleteProduct}
-                    onExport={exportProductsToCSV}
+                    onExport={exportProductsToExcel}
                 />;
             case 'receive':
                 return <ReceiveStockPage products={products} stockLogs={stockLogs} onReceive={receiveStock} />;

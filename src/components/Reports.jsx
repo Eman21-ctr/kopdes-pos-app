@@ -1,6 +1,6 @@
 import React, { useState, useMemo } from 'react';
 import { UserRole } from '../lib/types.js';
-import { formatDate, formatCurrency, exportTransactionsToCSV } from '../lib/helpers.js';
+import { formatDate, formatCurrency, exportTransactionsToExcel, exportMemberReportToExcel } from '../lib/helpers.js';
 import { DownloadIcon, TrashIcon } from './Icons.jsx';
 import AddMemberModal from './AddMemberModal.jsx';
 import TransactionDetailModal from './TransactionDetailModal.jsx';
@@ -110,11 +110,11 @@ const TransactionListTab = ({ transactions, deleteTransaction, currentUserRole }
                     {/* Tombol Export */}
                     <div className="flex justify-end">
                         <button
-                            onClick={() => exportTransactionsToCSV(filteredTransactions)}
+                            onClick={() => exportTransactionsToExcel(filteredTransactions, startDate, endDate)}
                             className="flex items-center gap-2 px-4 py-2 bg-slate-800 text-white text-sm font-medium rounded-md hover:bg-slate-700 transition-colors w-full md:w-auto justify-center"
                         >
                             <DownloadIcon className="w-4 h-4" />
-                            Eksport CSV
+                            Eksport Excel
                         </button>
                     </div>
                 </div>
@@ -284,12 +284,20 @@ const MemberReportTab = ({ members, transactions, onAddMemberClick, deleteMember
         <div className="bg-white p-6 rounded-lg shadow-sm">
             <div className="flex justify-between items-center mb-6">
                 <h3 className="text-xl font-bold">Laporan Anggota</h3>
-                <button
-                    onClick={onAddMemberClick}
-                    className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-                >
-                    Tambah Anggota Baru
-                </button>
+                <div className="flex items-center gap-3">
+                    <button
+                        onClick={() => exportMemberReportToExcel(memberTransactionStats)}
+                        className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700 text-sm"
+                    >
+                        <DownloadIcon className="w-4 h-4" /> Eksport Excel
+                    </button>
+                    <button
+                        onClick={onAddMemberClick}
+                        className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+                    >
+                        Tambah Anggota Baru
+                    </button>
+                </div>
             </div>
 
             {members.length === 0 ? (

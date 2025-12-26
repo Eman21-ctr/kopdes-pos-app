@@ -1,90 +1,82 @@
 import { jsPDF } from 'jspdf';
 import autoTable from 'jspdf-autotable';
+import * as XLSX from 'xlsx';
 
 export const formatCurrency = (amount) => {
-  // Handle non-numeric or undefined inputs gracefully
-  if (typeof amount !== 'number') {
-    amount = 0;
-  }
-  return new Intl.NumberFormat('id-ID', {
-    style: 'currency',
-    currency: 'IDR',
-    minimumFractionDigits: 0, // No decimal for Rupiah
-    maximumFractionDigits: 0
-  }).format(amount);
+    // Handle non-numeric or undefined inputs gracefully
+    if (typeof amount !== 'number') {
+        amount = 0;
+    }
+    return new Intl.NumberFormat('id-ID', {
+        style: 'currency',
+        currency: 'IDR',
+        minimumFractionDigits: 0, // No decimal for Rupiah
+        maximumFractionDigits: 0
+    }).format(amount);
 };
 
 export const formatDate = (date) => {
-  // Handle different date inputs (Date object, Firestore Timestamp)
-  const dateObj = date && typeof date.toDate === 'function' ? date.toDate() : new Date(date);
-  if (isNaN(dateObj)) { // Check if the date is valid
-    return 'Tanggal tidak valid';
-  }
-  return new Intl.DateTimeFormat('id-ID', {
-    dateStyle: 'medium',
-    timeStyle: 'short',
-  }).format(dateObj);
-};
-
-const downloadCSV = (csvContent, fileName) => {
-    const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
-    const link = document.createElement("a");
-    if (link.download !== undefined) {
-        const url = URL.createObjectURL(blob);
-        link.setAttribute("href", url);
-        link.setAttribute("download", fileName);
-        link.style.visibility = 'hidden';
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
+    // Handle different date inputs (Date object, Firestore Timestamp)
+    const dateObj = date && typeof date.toDate === 'function' ? date.toDate() : new Date(date);
+    if (isNaN(dateObj)) { // Check if the date is valid
+        return 'Tanggal tidak valid';
     }
+    return new Intl.DateTimeFormat('id-ID', {
+        dateStyle: 'medium',
+        timeStyle: 'short',
+    }).format(dateObj);
 };
 
-const convertToCSV = (headers, data) => {
-    const headerRow = headers.join(',');
-    const dataRows = data.map(row => 
-        row.map(field => {
-            const str = String(field ?? ''); // handle null/undefined
-            if (str.includes(',') || str.includes('"') || str.includes('\n')) {
-                return `"${str.replace(/"/g, '""')}"`; // Quote fields with special chars
-            }
-            return str;
-        }).join(',')
-    );
-    return [headerRow, ...dataRows].join('\n');
-}
+const downloadExcel = (headers, data, fileName, sheetName = 'Data') => {
+    // Gabungkan header dan data
+    const worksheetData = [headers, ...data];
 
-export const exportTransactionsToCSV = (transactions, startDate, endDate) => {
-  const headers = ['No. Transaksi', 'Tanggal & Waktu', 'Nama Kasir', 'Total Belanja', 'Metode Pembayaran', 'Nama Pelanggan'];
-  const data = transactions.map(t => [
-    t.id, formatDate(t.date), t.cashierName, t.total, t.paymentMethod, t.customerName || '-'
-  ]);
-  const csvContent = convertToCSV(headers, data);
-  const fileName = `transaksi_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}.csv`;
-  downloadCSV(csvContent, fileName);
+    // Buat worksheet
+    const worksheet = XLSX.utils.aoa_to_sheet(worksheetData);
+
+    // Buat workbook
+    const workbook = XLSX.utils.book_new();
+    XLSX.utils.book_append_sheet(workbook, worksheet, sheetName);
+
+    // Simpan file
+    XLSX.writeFile(workbook, `${fileName}.xlsx`);
 };
 
-export const exportMemberReportToCSV = (memberData, year) => {
-    const headers = ['Peringkat', 'Nama Anggota', 'Jumlah Transaksi', 'Total Belanja'];
-    const data = memberData.map((m, index) => [ index + 1, m.name, m.count, m.total ]);
-    const csvContent = convertToCSV(headers, data);
-    const fileName = `laporan_anggota_${year}.csv`;
-    downloadCSV(csvContent, fileName);
+export const exportTransactionsToExcel = (transactions, startDate, endDate) => {
+    const headers = ['No. Transaksi', 'Tanggal & Waktu', 'Nama Kasir', 'Total Belanja', 'Metode Pembayaran', 'Nama Pelanggan'];
+    const data = transactions.map(t => [
+        t.id, formatDate(t.date), t.cashierName, t.total, t.paymentMethod, t.customerName || '-'
+    ]);
+    const fileName = `transaksi_${startDate.toISOString().split('T')[0]}_to_${endDate.toISOString().split('T')[0]}`;
+    downloadExcel(headers, data, fileName, 'Transaksi');
 };
 
-export const exportProductsToCSV = (products) => {
+export const exportMemberReportToExcel = (memberData) => {
+    const headers = ['No. Anggota', 'Nama Anggota', 'Jumlah Transaksi', 'Total Belanja', 'Transaksi Terakhir'];
+    const data = memberData.map(m => [
+        m.id,
+        m.name,
+        m.totalTransactions,
+        m.totalAmount,
+        m.lastTransactionDate ? formatDate(m.lastTransactionDate).split(' ')[0] : '-'
+    ]);
+    const fileName = `laporan_anggota_${new Date().toISOString().split('T')[0]}`;
+    downloadExcel(headers, data, fileName, 'Anggota');
+};
+
+export const exportProductsToExcel = (products) => {
     const headers = ['SKU', 'Nama Barang', 'Harga Beli', 'Harga Jual', 'Stok', 'Satuan'];
-    const data = products.map(p => [ p.sku, p.name, p.purchasePrice, p.sellPrice, p.stock, p.unit ]);
-    const csvContent = convertToCSV(headers, data);
-    downloadCSV(csvContent, `daftar_barang_${new Date().toISOString().split('T')[0]}.csv`);
+    const data = products.map(p => [p.sku, p.name, p.purchasePrice, p.sellPrice, p.stock, p.unit]);
+    const fileName = `daftar_barang_${new Date().toISOString().split('T')[0]}`;
+    downloadExcel(headers, data, fileName, 'Barang');
 };
 
-export const exportStockLogsToCSV = (logs, type) => {
+export const exportStockLogsToExcel = (logs, type) => {
     const headers = ['Tanggal', 'Nama Barang', 'Perubahan', 'Stok Lama', 'Stok Baru', 'Keterangan'];
-    const data = logs.map(l => [ formatDate(l.date), l.productName, l.quantityChange, l.oldStock, l.newStock, l.notes || '-' ]);
-    const csvContent = convertToCSV(headers, data);
+    const data = logs.map(l => [formatDate(l.date), l.productName, l.quantityChange, l.oldStock, l.newStock, l.notes || '-']);
     const typeString = type.toLowerCase().replace(' ', '_');
-    downloadCSV(csvContent, `riwayat_${typeString}_${new Date().toISOString().split('T')[0]}.csv`);
+    const fileName = `riwayat_${typeString}_${new Date().toISOString().split('T')[0]}`;
+    downloadExcel(headers, data, fileName, 'Riwayat Stok');
 };
 
 // Common function for PDF generation
@@ -108,7 +100,7 @@ export const generateReceiptPDF = (transaction) => {
             y += 4;
         };
         const line = () => { y += 0.5; doc.text('--------------------------', 2, y); y += 3; };
-        
+
         addLine('KOPDES MERAH PUTIH', { align: 'center', isBold: true });
         addLine('PENFUI TIMUR', { align: 'center', isBold: true });
         addLine('Jln. Matani Raya', { align: 'center' });
@@ -129,11 +121,11 @@ export const generateReceiptPDF = (transaction) => {
         line();
 
         const addTotalLine = (label, value) => {
-             doc.text(label, 2, y);
-             doc.setFont('courier', 'bold');
-             doc.text(value, 56, y, { align: 'right' });
-             doc.setFont('courier', 'normal');
-             y += 4;
+            doc.text(label, 2, y);
+            doc.setFont('courier', 'bold');
+            doc.text(value, 56, y, { align: 'right' });
+            doc.setFont('courier', 'normal');
+            y += 4;
         };
         addTotalLine('Total', formatCurrency(transaction.total));
         addTotalLine(transaction.paymentMethod, formatCurrency(transaction.amountPaid || transaction.total));
@@ -146,7 +138,7 @@ export const generateReceiptPDF = (transaction) => {
 export const generateDailyReportPDF = (reportData, dateRange) => { // 'date' diubah menjadi 'dateRange'
     // Logika untuk memformat string tanggal, sama seperti di komponen Receipt
     const isSingleDay = new Date(dateRange.start).toDateString() === new Date(dateRange.end).toDateString();
-    
+
     // Kita gunakan format tanggal yang lebih pendek untuk PDF agar muat
     const dateString = isSingleDay
         ? new Date(dateRange.start).toLocaleDateString('id-ID', { dateStyle: 'long' })
@@ -170,20 +162,20 @@ export const generateDailyReportPDF = (reportData, dateRange) => { // 'date' diu
             y += 4;
         }
         const line = () => { y += 0.5; doc.text('--------------------------', 2, y); y += 3; };
-    
+
         addLine('KOPDES MERAH PUTIH', { align: 'center', isBold: true });
         addLine('PENFUI TIMUR', { align: 'center', isBold: true });
         addLine('Jln. Matani Raya', { align: 'center' });
         line();
         addLine('LAPORAN PERIODE', { align: 'center', isBold: true }); // Diubah dari "LAPORAN HARIAN"
-        
+
         // PERUBAHAN: Gunakan dateString yang sudah diformat
         addLine(dateString, { align: 'center' });
 
         line();
         addKeyValueLine('Omzet', formatCurrency(reportData.totalRevenue));
         addKeyValueLine('HPP', formatCurrency(reportData.totalHPP));
-        y+=1; doc.line(2, y-3.5, 56, y-3.5); // Garis pemisah
+        y += 1; doc.line(2, y - 3.5, 56, y - 3.5); // Garis pemisah
         addKeyValueLine('Laba Kotor', formatCurrency(reportData.totalGrossProfit), true);
         line();
         addLine('Rincian:', { isBold: true }); y -= 2;
