@@ -38,9 +38,9 @@ const App = () => {
       try {
         const mapDoc = (doc) => ({ id: doc.id, ...doc.data() });
         const mapDocWithDate = (doc) => {
-            const data = doc.data();
-            const date = data.date && typeof data.date.toDate === 'function' ? data.date.toDate() : new Date();
-            return { id: doc.id, ...data, date };
+          const data = doc.data();
+          const date = data.date && typeof data.date.toDate === 'function' ? data.date.toDate() : new Date();
+          return { id: doc.id, ...data, date };
         };
 
         const productsQuery = query(collection(db, "products"), orderBy("name"));
@@ -50,7 +50,7 @@ const App = () => {
         const membersQuery = query(collection(db, "members"), orderBy("name"));
         const membersSnapshot = await getDocs(membersQuery);
         setMembers(membersSnapshot.docs.map(mapDoc));
-        
+
         const transactionsQuery = query(collection(db, "transactions"), orderBy("date", "desc"));
         const transactionsSnapshot = await getDocs(transactionsQuery);
         setTransactions(transactionsSnapshot.docs.map(mapDocWithDate));
@@ -72,9 +72,9 @@ const App = () => {
   // --- FUNGSI addTransaction YANG DIPERBARUI ---
   const addTransaction = useCallback(async (transactionData) => {
     const cashierName = currentUserRole === UserRole.Admin ? "Admin" : "Kasir";
-    
+
     // Gunakan tanggal dari transactionData yang dikirim dari POS, bukan buat tanggal baru.
-    const transactionDate = transactionData.date; 
+    const transactionDate = transactionData.date;
 
     // Siapkan data untuk dikirim ke Firestore.
     // Kita hapus properti 'date' dari transactionData agar tidak duplikat.
@@ -84,174 +84,181 @@ const App = () => {
       date: Timestamp.fromDate(transactionDate), // Konversi tanggal ke Timestamp Firestore
       cashierName,
     };
-    
+
     try {
-        const batch = writeBatch(db);
-        const transactionRef = doc(collection(db, "transactions"));
-        batch.set(transactionRef, newTransactionData);
+      const batch = writeBatch(db);
+      const transactionRef = doc(collection(db, "transactions"));
+      batch.set(transactionRef, newTransactionData);
 
-        const newLogs = [];
-        const updatedProducts = [...products];
+      const newLogs = [];
+      const updatedProducts = [...products];
 
-        for (const item of transactionData.items) {
-            const productRef = doc(db, "products", item.id);
-            const productIndex = updatedProducts.findIndex(p => p.id === item.id);
-            if (productIndex !== -1) {
-                const product = updatedProducts[productIndex];
-                const newStock = product.stock - item.quantity;
-                batch.update(productRef, { stock: newStock });
+      for (const item of transactionData.items) {
+        const productRef = doc(db, "products", item.id);
+        const productIndex = updatedProducts.findIndex(p => p.id === item.id);
+        if (productIndex !== -1) {
+          const product = updatedProducts[productIndex];
+          const newStock = product.stock - item.quantity;
+          batch.update(productRef, { stock: newStock });
 
-                const logData = {
-                    date: Timestamp.fromDate(transactionDate), // Gunakan tanggal yang sama
-                    type: StockLogType.Penjualan,
-                    productName: product.name,
-                    quantityChange: -item.quantity,
-                    oldStock: product.stock,
-                    newStock: newStock,
-                    notes: `Transaksi #${transactionRef.id.substring(0, 5)}`
-                };
-                const logRef = doc(collection(db, "stockLogs"));
-                batch.set(logRef, logData);
+          const logData = {
+            date: Timestamp.fromDate(transactionDate), // Gunakan tanggal yang sama
+            type: StockLogType.Penjualan,
+            productName: product.name,
+            quantityChange: -item.quantity,
+            oldStock: product.stock,
+            newStock: newStock,
+            notes: `Transaksi #${transactionRef.id.substring(0, 5)}`
+          };
+          const logRef = doc(collection(db, "stockLogs"));
+          batch.set(logRef, logData);
 
-                newLogs.push({ id: logRef.id, ...logData, date: transactionDate });
-                updatedProducts[productIndex] = { ...product, stock: newStock };
-            }
+          newLogs.push({ id: logRef.id, ...logData, date: transactionDate });
+          updatedProducts[productIndex] = { ...product, stock: newStock };
         }
-        
-        await batch.commit();
+      }
 
-        // Untuk UI, gunakan tanggal asli (objek Date), bukan Timestamp
-        const finalTransaction = { ...transactionData, id: transactionRef.id, cashierName };
-        setTransactions(prev => [...prev, finalTransaction].sort((a,b) => b.date - a.date));
-        setStockLogs(prev => [...newLogs, ...prev].sort((a,b) => b.date - a.date));
-        setProducts(updatedProducts);
-        setLatestTransaction(finalTransaction);
+      await batch.commit();
+
+      // Untuk UI, gunakan tanggal asli (objek Date), bukan Timestamp
+      const finalTransaction = { ...transactionData, id: transactionRef.id, cashierName };
+      setTransactions(prev => [...prev, finalTransaction].sort((a, b) => b.date - a.date));
+      setStockLogs(prev => [...newLogs, ...prev].sort((a, b) => b.date - a.date));
+      setProducts(updatedProducts);
+      setLatestTransaction(finalTransaction);
     } catch (error) {
-        console.error("Error processing transaction: ", error);
-        alert("Terjadi kesalahan saat menyimpan transaksi.");
+      console.error("Error processing transaction: ", error);
+      alert("Terjadi kesalahan saat menyimpan transaksi.");
     }
   }, [currentUserRole, products]);
 
   const addProduct = useCallback(async (productData) => {
     try {
-        const docRef = await addDoc(collection(db, "products"), productData);
-        const newProduct = { id: docRef.id, ...productData };
-        setProducts(prev => [...prev, newProduct].sort((a,b) => a.name.localeCompare(b.name)));
-        alert('Produk baru berhasil ditambahkan!');
+      const docRef = await addDoc(collection(db, "products"), productData);
+      const newProduct = { id: docRef.id, ...productData };
+      setProducts(prev => [...prev, newProduct].sort((a, b) => a.name.localeCompare(b.name)));
+      alert('Produk baru berhasil ditambahkan!');
     } catch (error) {
-        console.error("Error adding product: ", error);
-        alert("Gagal menambahkan produk.");
+      console.error("Error adding product: ", error);
+      alert("Gagal menambahkan produk.");
     }
   }, []);
 
   const updateProduct = useCallback(async (updatedProduct) => {
     try {
-        const { id, ...dataToUpdate } = updatedProduct;
-        const productRef = doc(db, "products", id);
-        await updateDoc(productRef, dataToUpdate);
-        setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
-    } catch(error) {
-        console.error("Error updating product: ", error);
-        alert("Gagal memperbarui produk.");
+      const { id, ...dataToUpdate } = updatedProduct;
+      const productRef = doc(db, "products", id);
+      await updateDoc(productRef, dataToUpdate);
+      setProducts(prev => prev.map(p => p.id === id ? updatedProduct : p));
+    } catch (error) {
+      console.error("Error updating product: ", error);
+      alert("Gagal memperbarui produk.");
     }
   }, []);
-  
+
   const deleteProduct = useCallback(async (productId) => {
     try {
-        await deleteDoc(doc(db, "products", productId));
-        setProducts(prev => prev.filter(p => p.id !== productId));
-    } catch(error) {
-        console.error("Error deleting product: ", error);
-        alert("Gagal menghapus produk.");
+      await deleteDoc(doc(db, "products", productId));
+      setProducts(prev => prev.filter(p => p.id !== productId));
+    } catch (error) {
+      console.error("Error deleting product: ", error);
+      alert("Gagal menghapus produk.");
     }
   }, []);
   // ... setelah fungsi deleteProduct ...
 
-const deleteTransaction = useCallback(async (transactionToDelete) => {
+  const deleteTransaction = useCallback(async (transactionToDelete) => {
     // Konfirmasi ulang sebelum melakukan aksi berbahaya
     const isConfirmed = window.confirm(`Yakin ingin menghapus transaksi #${transactionToDelete.id.substring(0, 8)}? Stok barang akan dikembalikan. Aksi ini tidak bisa dibatalkan.`);
-    
+
     if (!isConfirmed) {
-        return; // Batalkan jika pengguna menekan 'Cancel'
+      return; // Batalkan jika pengguna menekan 'Cancel'
     }
 
     try {
-        const batch = writeBatch(db);
+      const batch = writeBatch(db);
 
-        // 1. Kembalikan stok untuk setiap barang dalam transaksi
-        for (const item of transactionToDelete.items) {
-            const productRef = doc(db, "products", item.id);
-            
-            // Buat log stok baru untuk pengembalian
-            const logData = {
-                date: Timestamp.fromDate(new Date()),
-                type: StockLogType.Penyesuaian, // atau bisa buat tipe baru 'Pembatalan Transaksi'
-                productName: item.name,
-                quantityChange: item.quantity, // Nilai positif untuk mengembalikan stok
-                // Kita butuh stok lama untuk log, kita ambil dari state
-                oldStock: products.find(p => p.id === item.id)?.stock || 0,
-                newStock: (products.find(p => p.id === item.id)?.stock || 0) + item.quantity,
-                notes: `Pembatalan Transaksi #${transactionToDelete.id.substring(0, 8)}`
-            };
+      // 1. Kembalikan stok untuk setiap barang dalam transaksi
+      for (const item of transactionToDelete.items) {
+        const productRef = doc(db, "products", item.id);
 
-            const logRef = doc(collection(db, "stockLogs"));
-            batch.set(logRef, logData);
-            
-            // Firestore tidak memiliki operator increment, jadi kita harus baca dulu.
-            // Namun, untuk batch, kita asumsikan state 'products' kita sudah up-to-date.
-            // Kita akan update stok berdasarkan state saat ini.
-            const currentProduct = products.find(p => p.id === item.id);
-            if (currentProduct) {
-                const newStock = currentProduct.stock + item.quantity;
-                batch.update(productRef, { stock: newStock });
-            }
+        // Buat log stok baru untuk pengembalian
+        const logData = {
+          date: Timestamp.fromDate(new Date()),
+          type: StockLogType.Penyesuaian, // atau bisa buat tipe baru 'Pembatalan Transaksi'
+          productName: item.name,
+          quantityChange: item.quantity, // Nilai positif untuk mengembalikan stok
+          // Kita butuh stok lama untuk log, kita ambil dari state
+          oldStock: products.find(p => p.id === item.id)?.stock || 0,
+          newStock: (products.find(p => p.id === item.id)?.stock || 0) + item.quantity,
+          notes: `Pembatalan Transaksi #${transactionToDelete.id.substring(0, 8)}`
+        };
+
+        const logRef = doc(collection(db, "stockLogs"));
+        batch.set(logRef, logData);
+
+        // Firestore tidak memiliki operator increment, jadi kita harus baca dulu.
+        // Namun, untuk batch, kita asumsikan state 'products' kita sudah up-to-date.
+        // Kita akan update stok berdasarkan state saat ini.
+        const currentProduct = products.find(p => p.id === item.id);
+        if (currentProduct) {
+          const newStock = currentProduct.stock + item.quantity;
+          batch.update(productRef, { stock: newStock });
         }
+      }
 
-        // 2. Hapus dokumen transaksi itu sendiri
-        const transactionRef = doc(db, "transactions", transactionToDelete.id);
-        batch.delete(transactionRef);
+      // 2. Hapus dokumen transaksi itu sendiri
+      const transactionRef = doc(db, "transactions", transactionToDelete.id);
+      batch.delete(transactionRef);
 
-        // Jalankan semua operasi dalam batch
-        await batch.commit();
+      // Jalankan semua operasi dalam batch
+      await batch.commit();
 
-        // 3. Perbarui state di UI secara optimis
-        setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
-        // Fetch ulang data produk & log untuk memastikan konsistensi
-        // (Cara sederhana, atau bisa update manual seperti di addTransaction)
-        alert("Transaksi berhasil dihapus dan stok telah dikembalikan.");
-        
-        // Untuk refresh data stok dan log stok di UI, kita bisa panggil fetchData lagi
-        // Ini cara paling mudah untuk memastikan data sinkron
-        // (Membutuhkan sedikit refactoring fetchData agar bisa dipanggil ulang)
+      // 3. Perbarui state di UI secara optimis
+      setTransactions(prev => prev.filter(t => t.id !== transactionToDelete.id));
+      // Fetch ulang data produk & log untuk memastikan konsistensi
+      // (Cara sederhana, atau bisa update manual seperti di addTransaction)
+      alert("Transaksi berhasil dihapus dan stok telah dikembalikan.");
+
+      // Untuk refresh data stok dan log stok di UI, kita bisa panggil fetchData lagi
+      // Ini cara paling mudah untuk memastikan data sinkron
+      // (Membutuhkan sedikit refactoring fetchData agar bisa dipanggil ulang)
 
     } catch (error) {
-        console.error("Error deleting transaction: ", error);
-        alert("Gagal menghapus transaksi.");
+      console.error("Error deleting transaction: ", error);
+      alert("Gagal menghapus transaksi.");
     }
-}, [products]); // Tambahkan 'products' sebagai dependensi
+  }, [products]); // Tambahkan 'products' sebagai dependensi
   // ... setelah fungsi deleteProduct ...
-
-const addMember = useCallback(async (memberData) => {
+  const addMember = useCallback(async (memberData) => {
     try {
-        // Kita menggunakan No Anggota (memberData.id) sebagai ID dokumen
-        const memberRef = doc(db, "members", memberData.id);
-        
-        // Menggunakan setDoc untuk membuat dokumen dengan ID spesifik
-        await setDoc(memberRef, { name: memberData.name });
-        
-        // Perbarui state secara optimis
-        setMembers(prev => [...prev, memberData].sort((a,b) => a.name.localeCompare(b.name)));
-        
-        alert(`Anggota "${memberData.name}" berhasil ditambahkan!`);
+      const memberRef = doc(db, "members", memberData.id);
+      await setDoc(memberRef, { name: memberData.name });
+      setMembers(prev => [...prev, memberData].sort((a, b) => a.name.localeCompare(b.name)));
+      alert(`Anggota "${memberData.name}" berhasil ditambahkan!`);
     } catch (error) {
-        console.error("Error adding member: ", error);
-        if (error.code === 'permission-denied') {
-            alert("Gagal menambahkan anggota. Pastikan No Anggota unik dan belum pernah digunakan.");
-        } else {
-            alert("Gagal menambahkan anggota.");
-        }
+      console.error("Error adding member: ", error);
+      if (error.code === 'permission-denied') {
+        alert("Gagal menambahkan anggota. Pastikan No Anggota unik dan belum pernah digunakan.");
+      } else {
+        alert("Gagal menambahkan anggota.");
+      }
     }
-}, []);
+  }, []);
+
+  const deleteMember = useCallback(async (memberId, memberName) => {
+    const isConfirmed = window.confirm(`Yakin ingin menghapus anggota "${memberName}"? Aksi ini tidak bisa dibatalkan.`);
+    if (!isConfirmed) return;
+
+    try {
+      await deleteDoc(doc(db, "members", memberId));
+      setMembers(prev => prev.filter(m => m.id !== memberId));
+      alert(`Anggota "${memberName}" berhasil dihapus.`);
+    } catch (error) {
+      console.error("Error deleting member: ", error);
+      alert("Gagal menghapus anggota.");
+    }
+  }, []);
 
   const receiveStock = useCallback(async (productId, quantity, notes) => {
     const product = products.find(p => p.id === productId);
@@ -261,71 +268,71 @@ const addMember = useCallback(async (memberData) => {
     const logDate = new Date();
 
     try {
-        const batch = writeBatch(db);
-        const productRef = doc(db, "products", productId);
-        batch.update(productRef, { stock: newStock });
+      const batch = writeBatch(db);
+      const productRef = doc(db, "products", productId);
+      batch.update(productRef, { stock: newStock });
 
-        const logData = {
-            date: Timestamp.fromDate(logDate),
-            type: StockLogType.Penerimaan,
-            productName: product.name,
-            quantityChange: quantity,
-            oldStock: product.stock,
-            newStock: newStock,
-            notes
-        };
-        const logRef = doc(collection(db, "stockLogs"));
-        batch.set(logRef, logData);
-        await batch.commit();
+      const logData = {
+        date: Timestamp.fromDate(logDate),
+        type: StockLogType.Penerimaan,
+        productName: product.name,
+        quantityChange: quantity,
+        oldStock: product.stock,
+        newStock: newStock,
+        notes
+      };
+      const logRef = doc(collection(db, "stockLogs"));
+      batch.set(logRef, logData);
+      await batch.commit();
 
-        setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
-        setStockLogs(prev => [{ id: logRef.id, ...logData, date: logDate }, ...prev]);
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
+      setStockLogs(prev => [{ id: logRef.id, ...logData, date: logDate }, ...prev]);
     } catch (error) {
-        console.error("Error receiving stock: ", error);
-        alert("Gagal menyimpan data penerimaan stok.");
+      console.error("Error receiving stock: ", error);
+      alert("Gagal menyimpan data penerimaan stok.");
     }
   }, [products]);
 
   const adjustStock = useCallback(async (productId, newStock, notes) => {
     const product = products.find(p => p.id === productId);
     if (!product) return;
-    
+
     const quantityChange = newStock - product.stock;
     const logDate = new Date();
 
     try {
-        const batch = writeBatch(db);
-        const productRef = doc(db, "products", productId);
-        batch.update(productRef, { stock: newStock });
+      const batch = writeBatch(db);
+      const productRef = doc(db, "products", productId);
+      batch.update(productRef, { stock: newStock });
 
-        const logData = {
-            date: Timestamp.fromDate(logDate),
-            type: StockLogType.Penyesuaian,
-            productName: product.name,
-            quantityChange: quantityChange,
-            oldStock: product.stock,
-            newStock: newStock,
-            notes
-        };
-        const logRef = doc(collection(db, "stockLogs"));
-        batch.set(logRef, logData);
-        await batch.commit();
+      const logData = {
+        date: Timestamp.fromDate(logDate),
+        type: StockLogType.Penyesuaian,
+        productName: product.name,
+        quantityChange: quantityChange,
+        oldStock: product.stock,
+        newStock: newStock,
+        notes
+      };
+      const logRef = doc(collection(db, "stockLogs"));
+      batch.set(logRef, logData);
+      await batch.commit();
 
-        setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
-        setStockLogs(prev => [{ id: logRef.id, ...logData, date: logDate }, ...prev]);
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, stock: newStock } : p));
+      setStockLogs(prev => [{ id: logRef.id, ...logData, date: logDate }, ...prev]);
     } catch (error) {
-        console.error("Error adjusting stock: ", error);
-        alert("Gagal menyimpan data penyesuaian stok.");
+      console.error("Error adjusting stock: ", error);
+      alert("Gagal menyimpan data penyesuaian stok.");
     }
   }, [products]);
 
 
   // Ubah dari:
-// const handleShowDailyReport = (data, date) => { ... }
-// Menjadi:
-const handleShowDailyReport = (data, dateRange) => {
+  // const handleShowDailyReport = (data, date) => { ... }
+  // Menjadi:
+  const handleShowDailyReport = (data, dateRange) => {
     setDailyReportData({ data, date: dateRange }); // date sekarang adalah objek {start, end}
-};
+  };
 
   const menuItems = [
     { id: 'dashboard', label: 'Dashboard', icon: DashboardIcon, roles: [UserRole.Admin] },
@@ -346,7 +353,7 @@ const handleShowDailyReport = (data, dateRange) => {
       case 'dashboard': return <Dashboard products={products} transactions={transactions} />;
       case 'pos': return <POS products={products.filter(p => p.stock > 0)} members={members} addTransaction={addTransaction} />;
       case 'stock': return <StockManagement products={products} addProduct={addProduct} updateProduct={updateProduct} deleteProduct={deleteProduct} receiveStock={receiveStock} adjustStock={adjustStock} stockLogs={stockLogs} />;
-      case 'reports': return <Reports transactions={transactions} onShowDailyReport={handleShowDailyReport} members={members} products={products} addMember={addMember}  deleteTransaction={deleteTransaction} currentUserRole={currentUserRole}/>;
+      case 'reports': return <Reports transactions={transactions} onShowDailyReport={handleShowDailyReport} members={members} products={products} addMember={addMember} deleteMember={deleteMember} deleteTransaction={deleteTransaction} currentUserRole={currentUserRole} />;
       default: return <Dashboard products={products} transactions={transactions} />;
     }
   };
@@ -362,32 +369,32 @@ const handleShowDailyReport = (data, dateRange) => {
           </div>
           <nav className="flex-grow space-y-2">
             {availableMenuItems.map(item => (
-              <NavItem 
-                key={item.id} 
-                menuId={item.id} 
-                label={item.label} 
+              <NavItem
+                key={item.id}
+                menuId={item.id}
+                label={item.label}
                 Icon={item.icon}
                 // Disempurnakan: Saat menu diklik, tutup sidebar (hanya di mode mobile)
                 onClick={(menuId) => {
                   setActiveMenu(menuId);
                   setIsSidebarOpen(false); // Tutup sidebar setelah memilih menu
-                }} 
-                isActive={activeMenu === item.id} 
+                }}
+                isActive={activeMenu === item.id}
               />
             ))}
           </nav>
           <div className="mt-6">
             <label htmlFor="user-role" className="block text-sm text-slate-400 mb-2">Simulasi Peran Pengguna</label>
-            <select 
-              id="user-role" 
-              value={currentUserRole} 
+            <select
+              id="user-role"
+              value={currentUserRole}
               onChange={(e) => {
                 const newRole = e.target.value;
                 setCurrentUserRole(newRole);
                 const newMenu = newRole === UserRole.Kasir ? 'pos' : 'dashboard';
-                if (menuItems.find(m => m.id === newMenu)?.roles.includes(newRole)) { 
+                if (menuItems.find(m => m.id === newMenu)?.roles.includes(newRole)) {
                   setActiveMenu(newMenu);
-                } else { 
+                } else {
                   setActiveMenu(availableMenuItems[0].id);
                 }
                 setIsSidebarOpen(false); // Tutup sidebar setelah ganti peran
@@ -402,7 +409,7 @@ const handleShowDailyReport = (data, dateRange) => {
         {/* === BAGIAN BARU: Overlay Gelap === */}
         {/* Muncul saat sidebar terbuka & hanya di layar kecil (lg:hidden) */}
         {isSidebarOpen && (
-          <div 
+          <div
             className="fixed inset-0 bg-black bg-opacity-50 z-20 lg:hidden"
             onClick={() => setIsSidebarOpen(false)}
           ></div>
@@ -412,22 +419,22 @@ const handleShowDailyReport = (data, dateRange) => {
         <div className="flex-1 flex flex-col overflow-hidden">
           {/* Header yang HANYA MUNCUL DI HP (lg:hidden) */}
           <header className="lg:hidden bg-white shadow-md p-4 flex justify-between items-center">
-              <button onClick={() => setIsSidebarOpen(true)}>
-                  <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
-              </button>
-              <div className="text-center">
-                <h1 className="text-md font-bold uppercase leading-tight text-slate-800">Kopdes Merah Putih</h1>
-              </div>
-              <div className="w-6"></div> {/* Spacer kosong agar judul di tengah */}
+            <button onClick={() => setIsSidebarOpen(true)}>
+              <svg className="w-6 h-6 text-slate-700" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" /></svg>
+            </button>
+            <div className="text-center">
+              <h1 className="text-md font-bold uppercase leading-tight text-slate-800">Kopdes Merah Putih</h1>
+            </div>
+            <div className="w-6"></div> {/* Spacer kosong agar judul di tengah */}
           </header>
-          
+
           {/* Konten Utama */}
           <main className="flex-1 overflow-y-auto">
             {renderContent()}
           </main>
         </div>
       </div>
-      
+
       {/* Modal-modal aplikasi */}
       {latestTransaction && (<ReceiptModal key={latestTransaction.id} transaction={latestTransaction} onClose={() => setLatestTransaction(null)} />)}
       {dailyReportData && (<DailyReportReceipt reportData={dailyReportData.data} date={dailyReportData.date} onClose={() => setDailyReportData(null)} />)}
