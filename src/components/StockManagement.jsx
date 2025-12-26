@@ -4,7 +4,7 @@ import { StockLogType } from "../lib/types.js";
 import { formatCurrency, formatDate, exportProductsToCSV, exportStockLogsToCSV } from '../lib/helpers.js'; // PASTIKAN PATH INI BENAR
 import { DownloadIcon } from './Icons.jsx';
 
-const PRODUCT_UNITS = ['Pcs', 'Kg', 'Liter', 'Pack', 'Sachet', 'Botol', 'Kaleng', 'Rak', 'Renteng', 'Dos', 'Ikat', 'Karung', 'Jrg', 'Tabung', 'Bungkus', 'Batang', 'Butir'];
+const PRODUCT_UNITS = ['Pcs', 'Kg', 'Liter', 'Pack', 'Sachet', 'Botol', 'Kaleng', 'Rak', 'Renteng', 'Dos', 'Ikat', 'Karung', 'Jrg', 'Tabung', 'Bungkus', 'Batang', 'Butir', 'Gelas'];
 
 // Komponen Input Pencarian Barang (dapat digunakan kembali)
 const ProductSearchableInput = ({ products, onSelect, placeholder = "Cari nama atau SKU barang...", disabled }) => {

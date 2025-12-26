@@ -3,7 +3,8 @@ import { UserRole } from '../lib/types.js';
 import { formatDate, formatCurrency, exportTransactionsToCSV } from '../lib/helpers.js';
 import { DownloadIcon, TrashIcon } from './Icons.jsx';
 import AddMemberModal from './AddMemberModal.jsx';
-import TransactionDetailModal from './TransactionDetailModal.jsx'; // 1. Impor Modal Baru
+import TransactionDetailModal from './TransactionDetailModal.jsx';
+import MemberDetailModal from './MemberDetailModal.jsx'; // Import Modal Detail Member
 
 // --- TAB DAFTAR TRANSAKSI ---
 const TransactionListTab = ({ transactions, deleteTransaction, currentUserRole }) => {
@@ -243,6 +244,8 @@ const DailyReportTab = ({ transactions, products, onShowDailyReport }) => {
 
 // --- TAB LAPORAN ANGGOTA ---
 const MemberReportTab = ({ members, transactions, onAddMemberClick, deleteMember }) => {
+    const [selectedMember, setSelectedMember] = useState(null);
+
     // Hitung statistik transaksi per anggota
     const memberTransactionStats = useMemo(() => {
         const stats = {};
@@ -338,20 +341,29 @@ const MemberReportTab = ({ members, transactions, onAddMemberClick, deleteMember
                                         </td>
                                         <td className="px-4 py-3 text-center">
                                             <span className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${member.totalTransactions > 0
-                                                    ? 'bg-green-100 text-green-800'
-                                                    : 'bg-orange-100 text-orange-800'
+                                                ? 'bg-green-100 text-green-800'
+                                                : 'bg-orange-100 text-orange-800'
                                                 }`}>
                                                 {member.totalTransactions > 0 ? 'Aktif' : 'Belum Aktif'}
                                             </span>
                                         </td>
                                         <td className="px-4 py-3 text-center">
-                                            <button
-                                                onClick={() => deleteMember(member.id, member.name)}
-                                                className="text-red-600 hover:text-red-800 transition-colors"
-                                                title="Hapus Anggota"
-                                            >
-                                                <TrashIcon className="w-5 h-5 mx-auto" />
-                                            </button>
+                                            <div className="flex items-center justify-center gap-3">
+                                                <button
+                                                    onClick={() => setSelectedMember(member)}
+                                                    className="text-blue-600 hover:text-blue-800 transition-colors"
+                                                    title="Lihat Detail"
+                                                >
+                                                    Detail
+                                                </button>
+                                                <button
+                                                    onClick={() => deleteMember(member.id, member.name)}
+                                                    className="text-red-600 hover:text-red-800 transition-colors"
+                                                    title="Hapus Anggota"
+                                                >
+                                                    <TrashIcon className="w-5 h-5 mx-auto" />
+                                                </button>
+                                            </div>
                                         </td>
                                     </tr>
                                 ))}
@@ -391,19 +403,35 @@ const MemberReportTab = ({ members, transactions, onAddMemberClick, deleteMember
                                                 {member.lastTransactionDate ? formatDate(member.lastTransactionDate).split(' ')[0] : 'Belum ada'}
                                             </span>
                                         </div>
-                                        <button
-                                            onClick={() => deleteMember(member.id, member.name)}
-                                            className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
-                                            title="Hapus Anggota"
-                                        >
-                                            <TrashIcon className="w-5 h-5" />
-                                        </button>
+                                        <div className="flex items-center gap-3">
+                                            <button
+                                                onClick={() => setSelectedMember(member)}
+                                                className="text-xs font-medium text-blue-600 px-3 py-1 bg-blue-50 rounded"
+                                            >
+                                                Detail
+                                            </button>
+                                            <button
+                                                onClick={() => deleteMember(member.id, member.name)}
+                                                className="p-2 text-red-600 hover:bg-red-50 rounded-full transition-colors"
+                                                title="Hapus Anggota"
+                                            >
+                                                <TrashIcon className="w-5 h-5" />
+                                            </button>
+                                        </div>
                                     </div>
                                 </div>
                             </div>
                         ))}
                     </div>
                 </>
+            )}
+
+            {selectedMember && (
+                <MemberDetailModal
+                    member={selectedMember}
+                    transactions={transactions}
+                    onClose={() => setSelectedMember(null)}
+                />
             )}
         </div>
     );
